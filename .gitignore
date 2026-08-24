@@ -1,0 +1,12 @@
+# Build output
+legacy/build/
+__pycache__/
+*.pyc
+
+# graphify working cache (the graph itself is committed as a demo artifact)
+legacy/graphify-out/cache/
+legacy/graphify-out/.graphify_labels.json.sig
+
+# Local scratch
+*.actual
+.DS_Store

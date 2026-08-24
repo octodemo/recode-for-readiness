@@ -1,0 +1,85 @@
+---- GEOSAT TELEMETRY FRAME ----
+SCID= 42  APID=  7  FRAME=    900000
+UTC 2023-01-06 00:00:00  DOY=006
+SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+CH NAME     RAW        EU  UNITS    ST
+ 1 BUSV       0     0.000 VDC       RL
+ 2 BUSI       0     0.000 AMPS      YL
+ 3 BATT       0   -55.000 DEG C     RL
+ 4 RWRP  -32768 ********* RPM       RL
+ 5 GYRX  -32768   -63.999 DEG/S     RL
+ 6 GYRY   32767    63.997 DEG/S     RH
+ 7 GYRZ       0     0.000 DEG/S     OK
+ 8 PLTM       0   -40.000 DEG C     RL
+ 9 XMTP       0     0.000 WATTS     YL
+10 RAGC       0  -120.000 DBM       RL
+11 SAAN       0     0.000 DEG       OK
+---- GEOSAT TELEMETRY FRAME ----
+SCID= 42  APID=  7  FRAME=    900001
+UTC 2023-01-06 00:00:01  DOY=006
+SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+CH NAME     RAW        EU  UNITS    ST
+ 1 BUSV   65535    79.999 VDC       RH
+ 2 BUSI   65535    20.001 AMPS      RH
+ 3 BATT   65535    59.921 DEG C     RH
+ 4 RWRP   32767 16383.500 RPM       RH
+ 5 GYRX   32767    63.997 DEG/S     RH
+ 6 GYRY  -32768   -63.999 DEG/S     RL
+ 7 GYRZ      -1    -0.002 DEG/S     OK
+ 8 PLTM   65535   160.000 DEG C     RH
+ 9 XMTP     255    10.000 WATTS     RH
+10 RAGC     255    -0.000 DBM       RH
+11 SAAN     360     0.000 DEG       OK
+---- GEOSAT TELEMETRY FRAME ----
+SCID= 42  APID=  7  FRAME=    900002
+UTC 2023-01-06 00:00:02  DOY=006
+SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+CH NAME     RAW        EU  UNITS    ST
+ 1 BUSV   23000    28.076 VDC       OK
+ 2 BUSI   26000     7.935 AMPS      OK
+ 3 BATT   25000     1.000 DEG C     OK
+ 4 RWRP      -1    -0.500 RPM       OK
+ 5 GYRX      -1    -0.002 DEG/S     OK
+ 6 GYRY      -1    -0.002 DEG/S     OK
+ 7 GYRZ      -1    -0.002 DEG/S     OK
+ 8 PLTM   19000    17.984 DEG C     OK
+ 9 XMTP     200     7.843 WATTS     OK
+10 RAGC     150   -49.412 DBM       YH
+11 SAAN     192   192.000 DEG       OK
+---- GEOSAT TELEMETRY FRAME ----
+SCID= 42  APID=  7  FRAME=    900003
+UTC 2023-01-06 00:00:03  DOY=006
+SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+CH NAME     RAW        EU  UNITS    ST
+ 1 BUSV   23000    28.076 VDC       OK
+ 2 BUSI   26000     7.935 AMPS      OK
+ 3 BATT   25000     1.000 DEG C     OK
+ 4 RWRP    2400  1200.000 RPM       OK
+ 5 GYRX     120     0.234 DEG/S     OK
+ 6 GYRY     -80    -0.156 DEG/S     OK
+ 7 GYRZ      40     0.078 DEG/S     OK
+ 8 PLTM      15   -39.954 DEG C     RL
+ 9 XMTP     200     7.843 WATTS     OK
+10 RAGC     150   -49.412 DBM       YH
+11 SAAN     360     0.000 DEG       OK
+---- GEOSAT TELEMETRY FRAME ----
+SCID= 42  APID=  7  FRAME=    900004
+UTC 2023-01-06 00:00:04  DOY=006
+SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+CH NAME     RAW        EU  UNITS    ST
+ 1 BUSV   23000    28.076 VDC       OK
+ 2 BUSI   26000     7.935 AMPS      OK
+ 3 BATT   25000     1.000 DEG C     OK
+ 4 RWRP    2400  1200.000 RPM       OK
+ 5 GYRX     120     0.234 DEG/S     OK
+ 6 GYRY     -80    -0.156 DEG/S     OK
+ 7 GYRZ      40     0.078 DEG/S     OK
+ 8 PLTM   65295   159.267 DEG C     RH
+ 9 XMTP     200     7.843 WATTS     OK
+10 RAGC     150   -49.412 DBM       YH
+11 SAAN     360     0.000 DEG       OK
+---- PASS SUMMARY ----
+FRAMES PROCESSED         5
+SYNC LOSSES              0
+CRC FAILURES             0
+LIMIT VIOLATIONS        23
