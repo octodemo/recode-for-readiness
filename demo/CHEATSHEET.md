@@ -63,11 +63,12 @@ PR=$(gh pr list --json number --jq 'max_by(.number).number')
 gh pr view "$PR" --json files --jq '.files[].path'
 ```
 
-Derive the PR number. Do not hardcode `1` — that's the frozen reference run.
+Derive the PR number with `max_by(.number)`. Never hardcode it — the reference
+runs are older and lower-numbered than your live one.
 
-Two proven runs already in the repo (`#1` ORBPRP, `#2` TIMCNV), both draft,
-both fenced to `docs/plans/`. Worth saying out loud: it ran twice, on two
-routines, and landed in the same place both times.
+Proven reference runs are already in the repo, draft, fenced to `docs/plans/`.
+Worth saying out loud: it ran on more than one routine and landed in the same
+place every time.
 
 ---
 

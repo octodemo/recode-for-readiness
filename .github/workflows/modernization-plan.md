@@ -67,6 +67,12 @@ equivalence, then change behaviour separately and deliberately.
 
 ## What to write
 
+`docs/plans/` already exists in the checkout and is tracked. Write your file
+directly into it. Do **not** try to create the directory — the sandbox denies
+every directory-creation call, and attempting it wastes the run. If the
+directory somehow appears to be missing, call `report_incomplete` immediately
+rather than trying to work around it.
+
 Create `docs/plans/<routine-lowercase>.md` containing:
 
 1. **Current behaviour** — what the routine does now, cited to

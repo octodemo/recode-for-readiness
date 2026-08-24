@@ -1,0 +1,14 @@
+This directory must exist in the repository, tracked, even when empty.
+
+The modernization-plan agentic workflow is fenced by safe-outputs to
+`docs/plans/**` and writes its plan there. The agent sandbox denies every
+directory-creation call -- mkdir, install -d, git worktree, the language
+runtime equivalents, all of it -- and the `create` tool refuses to create a
+file whose parent directory does not exist.
+
+Git does not track empty directories. So without this file, `docs/plans/` is
+absent from a fresh checkout on the runner, the agent cannot create it, and the
+run fails with `report_incomplete` after burning ~20 minutes. That happened on
+run 32746344407 (TIMCNV, 2026-08-24).
+
+Do not delete this file. `tools/preflight.sh` asserts it is tracked.

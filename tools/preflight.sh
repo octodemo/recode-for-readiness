@@ -151,6 +151,12 @@ else
   warn "no frozen artifacts -- beat 4 has no fallback"
 fi
 
+if git ls-files --error-unmatch docs/plans/.gitkeep >/dev/null 2>&1; then
+  ok "docs/plans/ is tracked (agent can write its plan)"
+else
+  bad "docs/plans/ not tracked -- the plan agent cannot mkdir and WILL fail"
+fi
+
 if [[ -z "$(git status --porcelain -- legacy/src modern/src modern/tests)" ]]; then
   ok "mutation targets clean ('make mutants' can run)"
 else

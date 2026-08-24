@@ -194,6 +194,11 @@ two. If you catch yourself explaining parsers, you have lost the room.
 > anywhere. It can't leave the building.
 >
 > So let me not just assert that we solved that. Let me show you.
+>
+> The tool I'm about to run is called Graphify. Up front — it's not ours, it's
+> not a GitHub product, and I'm not selling it to you. Open source, Apache 2.0,
+> runs on your machine. If your shop already has something that does this, use
+> that. The point isn't the tool.
 
 ```bash
 make beat2
@@ -238,13 +243,13 @@ Then let the map answer questions. **Stay in `legacy/` for all three commands.**
 cd legacy && graphify god-nodes --top 5
 ```
 
-> So: what's actually load-bearing in here? Top of the list is the main program,
-> which, fine, that one's by design. But look at two and three. Those two
-> routines are where everything in this system converges. Nobody designed that.
-> It accreted, one change order at a time, over four decades.
+> So: what's actually load-bearing in here? Top of the list is the main program
+> — fine, that one's by design. But look at two and three. That's where
+> everything in this system converges. Nobody designed that. It accreted, one
+> change order at a time, over four decades.
 >
-> And that's the real architecture of this system. Not what the diagram on
-> somebody's wall says. And we got it in about a quarter of a second.
+> And that's the real architecture. Not the diagram on somebody's wall. And we
+> got it in about a quarter of a second.
 
 ```bash
 graphify explain "ORBPRP"
@@ -252,15 +257,34 @@ graphify path "geosat" "crcchk"
 cd ..
 ```
 
-> Second question is the one your engineers actually ask: if I touch this piece,
-> what else do I have to worry about? That's this. And every single line of that
-> answer comes with a file and a line number, so I can go open it and check it
-> myself. Nothing here is a guess I have to take on faith.
+> And the question your engineers actually ask: if I touch this, what else do I
+> have to worry about? That's this. Every line of that answer comes with a file
+> and a line number, so I can go open it and check it. Nothing here is a guess I
+> have to take on faith.
 >
-> And the reason I'm spending real time on this — the expensive part of
-> modernization was never writing the new code. Everybody can write the new
-> code. The expensive part is that nobody can tell you what the old code
-> promised. This part costs you nothing, and it happens inside your boundary.
+> And here's why I'm spending real time on a map, in an AI talk.
+>
+> The way most people try this is they paste the whole thing into a model and
+> say "modernize this." You'll get something back, and it'll look great, and you
+> will have no idea which parts are real — because you gave the model no way to
+> be checked.
+>
+> A map changes what you can ask for. Now it's: this *one* routine, here's what
+> calls it, here's what it touches, go. That's a question with a right answer.
+> And what comes back carries file and line numbers, so a human verifies it in a
+> minute instead of re-reading the whole deck.
+>
+> You also stop doing this big-bang. One routine at a time, smallest blast
+> radius first, always knowing what you just risked.
+>
+> And you'll see this land in five minutes — when I hand this to an agent, the
+> first thing it does is go read this map. It's not guessing at your
+> architecture. It's working from the facts you just watched me generate, inside
+> your boundary, for free.
+>
+> Because the expensive part was never writing the new code. Everybody can write
+> the new code. The expensive part is that nobody can tell you what the old code
+> promised.
 
 **Fallback:** graph queries must run from `legacy/` — the tool resolves
 `graphify-out` relative to the working directory. If you get
@@ -393,9 +417,10 @@ PR=$(gh pr list --json number --jq 'max_by(.number).number')
 gh pr view "$PR" --json files --jq '.files[].path'
 ```
 
-Derive the number — do **not** hardcode `1`. PR #1 is the frozen reference run;
-your live dispatch opens a new one, and reading the wrong PR in front of the
-room is the sort of thing people notice.
+Derive the number — do **not** hardcode it. The repo already carries proven
+reference runs, and your live dispatch opens a *new* one on top of them. Reading
+the wrong PR in front of the room is the sort of thing people notice.
+`max_by(.number)` always lands on yours.
 
 That second command is worth typing on purpose — it shows the agent touched
 exactly one path, and it is under `docs/plans/`.
@@ -474,46 +499,52 @@ Six mutations, six `caught by the suite`.
 
 ## Timing card
 
-Targets below are **measured**, not aspirational — spoken word counts at a
-conference cadence of ~155 wpm, plus observed command runtime. Beat 0 and Beat 2
-were both re-baselined after the first pass under-budgeted them.
+**Measured, not estimated.** Talk column is the actual spoken word count of the
+block quotes at 155 wpm. Commands column is wall-clock, timed on a warm cache —
+which is the real stage condition, since you will have run `make preflight` that
+morning. Re-measure after any narration edit.
 
-| Beat | Content | Talk | + Commands | Target | Cumulative |
+| Beat | Content | Talk | Commands | Target | Cumulative |
 |---|---|---|---|---|---|
 | 0 | What the thing does | 1:45 | — | 1:45 | 1:45 |
-| 1 | The deck still runs | 2:15 | 0:30 | 2:45 | 4:30 |
-| 2 | Map it, in-boundary | 3:20 | 0:40 | 4:00 | 8:30 |
-| 3 | Characterize and port | 3:30 | 1:30 | 5:00 | 13:30 |
-| 4 | Agentic loop in CI | 4:00 | 0:30 | 4:30 | 18:00 |
-| 5 | Mutation check and close | 1:15 | 0:45 | 2:00 | 20:00 |
+| 1 | The deck still runs | 2:35 | 0:05 | 2:40 | 4:25 |
+| 2 | Map it, in-boundary | 4:35 | 0:10 | 4:45 | 9:10 |
+| 3 | Characterize and port | 3:30 | 0:05 | 3:35 | 12:45 |
+| 4 | Agentic loop in CI | 2:05 | 1:45 | 3:50 | 16:35 |
+| 5 | Mutation check and close | 1:35 | 0:10 | 1:45 | 18:20 |
 
-Plus one **optional** 0:25 aside in Beat 1 ("why is it all one file?") that is
-not counted above. Take it only if you're ahead.
+Beat 4's "commands" is you walking the PR in the browser, which is the one place
+you will naturally run long.
 
-**That is 20:00 flat, with zero slack and no Q&A.** If your slot is 20 minutes
-*including* questions, you are already over — take the first two cuts below.
-If your slot is a hard 15, take the whole cut list *before* you walk up.
-Deciding on stage is how demos die.
+**18:20 clean.** Real rooms add pauses, a laugh, and someone interrupting with a
+question, so **plan on 20:00 and change**. Two optional adds not counted above:
+the "why is it one file?" aside in Beat 1 (0:25) and the show of hands (0:30).
 
-### The 15-minute cut (decide beforehand)
+**If your slot is 20 minutes including Q&A, you are over.** Take the first two
+cuts below before you walk up.
+
+### Cut list, in order
 
 | Cut | Saves | Cost |
 |---|---|---|
-| Beat 0 → the three-sentence version at the end of that section | 1:15 | Non-technical half is thinner on Beat 3 |
-| Beat 2 → drop `graphify explain` + `path`, keep `god-nodes` | 1:00 | Lose the blast-radius question |
-| Beat 4 → skip `cat`-ing the workflow, say `safe-outputs` over the PR | 1:00 | Lose the "you can read the whole agent" moment |
-| Beat 1 → skip the show of hands | 0:30 | Lose the room-warming open |
+| Beat 2 → drop `graphify explain` + `path`, keep `god-nodes` | 0:50 | Lose the blast-radius question. The AI bridge still works. |
+| Beat 4 → skip `cat`-ing the workflow, say `safe-outputs` over the PR | 0:50 | Lose "you can read the whole agent" |
+| Beat 0 → the three-sentence version | 1:15 | Non-technical half is thinner in Beat 3 |
+| Beat 1 → skip the show of hands, skip the aside | 0:55 | Colder open |
+| Beat 2 → drop the "paste it into a model" paragraph | 0:30 | Weakens the *why AI needs this* argument. Last resort. |
 
-That's 15:30. Take the first three and stop.
+First two gets you to 16:40. First three, 15:25.
 
 ### Never cut
 
-- **Beat 5.** Shortest beat, and it is the one that makes the other four
-  credible. If you cut it you are just asserting the tests work.
-- **`make defect` in Beat 3.** The best thirty seconds in the demo. If you are
-  long at Beat 3, cut narration around it, not it.
-- **The air-gap concession in Beat 2.** Saying "it's a software block, not an
-  air gap" out loud is what buys you the rest of the claim in this room.
+- **Beat 5.** Shortest beat, and it is what makes the other four credible.
+  Without it you are just asserting the tests work.
+- **`make defect` in Beat 3.** Best thirty seconds in the demo. If you are long
+  at Beat 3, cut narration around it, not it.
+- **The air-gap concession in Beat 2** — "it's a software block, not an air
+  gap." Saying it out loud is what buys you the rest of the claim in this room.
+- **The "not a GitHub product" line on Graphify.** Cheap, and it inoculates the
+  obvious cynical read.
 
 ## Known failure modes
 
