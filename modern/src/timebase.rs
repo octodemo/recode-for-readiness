@@ -1,22 +1,22 @@
 //! GPS-to-UTC time conversion.
 //!
-//! Port of `TIMCNV` in `legacy/src/geosat.f`.
+//! Port of `TIMCNV` in `legacy/src/geosat.f:440`.
 //!
-//! The GPS epoch is 1980-01-06 00:00:00 UTC. The leap-second offset is a
-//! hand-maintained constant in the legacy source, last updated 2016-12-31.
-//! It is reproduced here as a constant rather than sourced from a leap-second
-//! table on purpose: changing it would change the output, and the point of
-//! this port is to not change the output.
-//!
-//! Recorded for the modernization backlog, not fixed here: `LEAP_SECONDS` is
-//! stale for any epoch after 2016-12-31. Replacing it with a maintained table
-//! is a behavioural change and must be its own reviewed change with its own
-//! updated golden vectors.
+//! `TIMCNV` backs out a hand-maintained leap-second offset to recover UTC
+//! seconds-of-day, splits that into hours/minutes/seconds, then walks
+//! forward year-by-year (and month-by-month) from the GPS epoch (1980 Jan 06)
+//! to find the calendar date. All arithmetic in the legacy routine is
+//! `INTEGER`, so this port uses `i64` throughout and Rust's `/` (which, like
+//! FORTRAN integer division, truncates toward zero) to match exactly.
 
 pub const GPS_EPOCH_YEAR: i64 = 1980;
-pub const LEAP_SECONDS: i64 = 18;
 
-const MONTH_DAYS: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+/// Leap-second offset between GPS time and UTC.
+///
+/// A hand-maintained constant in the legacy source. Reproduce whatever the
+/// legacy deck uses. Do not "correct" it -- changing it changes the output,
+/// and the point of the port is to not change the output.
+pub const LEAP_SECONDS: i64 = 18;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UtcTime {
@@ -29,66 +29,76 @@ pub struct UtcTime {
     pub day_of_year: i64,
 }
 
-fn is_leap(year: i64) -> bool {
-    if year % 400 == 0 {
-        return true;
-    }
-    if year % 100 == 0 {
-        return false;
-    }
-    year % 4 == 0
-}
+const MDAYS: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 /// Convert GPS seconds of epoch to UTC calendar fields.
+///
+/// Port of `TIMCNV` (`legacy/src/geosat.f:440`).
 pub fn to_utc(gps_seconds: i64) -> UtcTime {
-    let total = gps_seconds - LEAP_SECONDS;
+    // BACK OUT LEAP SECONDS TO REACH UTC
+    let totsec = gps_seconds - LEAP_SECONDS;
 
-    // Floor division, matching Python's `divmod`. The legacy deck only ever
-    // sees post-epoch timestamps, but flooring keeps the two ports identical
-    // rather than identical-for-the-inputs-we-happened-to-test.
-    let mut days = total.div_euclid(86400);
-    let remainder = total.rem_euclid(86400);
-
-    let hour = remainder.div_euclid(3600);
-    let rem = remainder.rem_euclid(3600);
-    let minute = rem.div_euclid(60);
-    let second = rem.rem_euclid(60);
-
-    // Walk forward from the GPS epoch, 1980-01-06.
-    let mut year = GPS_EPOCH_YEAR;
-    days += 5;
-
-    loop {
-        let length = if is_leap(year) { 366 } else { 365 };
-        if days < length {
-            break;
-        }
-        days -= length;
-        year += 1;
+    let mut ndays = totsec / 86400;
+    let mut rem = totsec - (ndays * 86400);
+    if rem < 0 {
+        rem += 86400;
+        ndays -= 1;
     }
 
-    let day_of_year = days + 1;
+    let utchr = rem / 3600;
+    let utcmin = (rem - utchr * 3600) / 60;
+    let utcsec = rem - utchr * 3600 - utcmin * 60;
 
-    let mut month = 1i64;
+    // WALK FORWARD FROM THE GPS EPOCH, 1980 JAN 06
+    let mut yr = GPS_EPOCH_YEAR;
+    ndays += 5;
+
     loop {
-        let mut length = MONTH_DAYS[(month - 1) as usize];
-        if month == 2 && is_leap(year) {
-            length = 29;
+        let mut diny = 365;
+        if yr % 4 == 0 && yr % 100 != 0 {
+            diny = 366;
         }
-        if days < length {
+        if yr % 400 == 0 {
+            diny = 366;
+        }
+        if ndays < diny {
             break;
         }
-        days -= length;
-        month += 1;
+        ndays -= diny;
+        yr += 1;
     }
+
+    let utcyr = yr;
+    let utcdoy = ndays + 1;
+
+    let mut mo = 1;
+    loop {
+        let mut dim = MDAYS[(mo - 1) as usize];
+        if mo == 2 {
+            if yr % 4 == 0 && yr % 100 != 0 {
+                dim = 29;
+            }
+            if yr % 400 == 0 {
+                dim = 29;
+            }
+        }
+        if ndays < dim {
+            break;
+        }
+        ndays -= dim;
+        mo += 1;
+    }
+
+    let utcmon = mo;
+    let utcday = ndays + 1;
 
     UtcTime {
-        year,
-        month,
-        day: days + 1,
-        hour,
-        minute,
-        second,
-        day_of_year,
+        year: utcyr,
+        month: utcmon,
+        day: utcday,
+        hour: utchr,
+        minute: utcmin,
+        second: utcsec,
+        day_of_year: utcdoy,
     }
 }
