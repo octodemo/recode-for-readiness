@@ -166,6 +166,25 @@ else
   warn_live "missing frozen artifacts:$missing_art"
 fi
 
+# The interactive graph is shown on stage in beat 2, whose whole argument is
+# that nothing leaves the boundary. A CDN <script> tag in that file would both
+# render blank on bad wifi and quietly contradict the claim.
+if [[ -f legacy/graphify-out/graph.html ]]; then
+  if grep -qE 'src="https?://|href="https?://' legacy/graphify-out/graph.html; then
+    bad "graph.html loads from a CDN -- run './tools/localize-graph.sh'"
+  else
+    ok "graph.html is self-contained (renders with the network off)"
+  fi
+else
+  warn "no graph.html yet -- 'make graph' will build it"
+fi
+
+if [[ -s demo/vendor/vis-network.min.js ]]; then
+  ok "vis-network vendored locally"
+else
+  warn "demo/vendor/vis-network.min.js missing -- 'make viz' will need network once"
+fi
+
 # Clutter check. Not fatal, but finding six near-identical pull requests while
 # you are already on stage is a bad time to find out.
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then

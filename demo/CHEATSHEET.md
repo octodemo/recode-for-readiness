@@ -42,7 +42,7 @@ Both run on `main`. Nothing to stage, nothing to reset. Plan ~8m30s, implement
 |---|---|---|---|
 | 0 | What it does | *no terminal — just talk* | 1 |
 | 1 | Deck still runs | `make beat1` | 2 |
-| 2 | Map it, in-boundary | `make beat2` → then queries below | 3 |
+| 2 | Map it, in-boundary | `make beat2` → `make viz` → queries below | 3 |
 | 3 | Characterize + port to Rust | `make beat3` → `make defect` | 5 |
 | 4 | Agent plans | *right terminal*, see below | 5 |
 | 4b | Agent writes the port | *right terminal*, PR from run 2 | 3 |
@@ -50,6 +50,8 @@ Both run on `main`. Nothing to stage, nothing to reset. Plan ~8m30s, implement
 
 **Over 20 min? Cut 4b, keep 4.** If they want proof it can *build*, not just
 plan, invert it: cut 4, keep 4b.
+
+**Beat 2 picture** — `make viz`. Self-contained, renders with wifi off.
 
 **Beat 2 queries** — the only time you leave the repo root:
 
@@ -112,9 +114,10 @@ All real captured output, not mockups. Never debug live.
 2. **Beat 2** — stay high. Two ideas only: *you get a map cheaply*, and
    *making it sends your code nowhere*. Say **reading, not asking** out loud;
    keep "parsing is not inference" in your pocket for the technical follow-up.
-   Name the optional Gemini layer *before* they see `Tip: set GEMINI_API_KEY`
-   on screen. Proxy blackhole is not an air-gap; say so. Do not explain
-   parsers.
+   Say the optional model layer exists and you skipped it — the vendor tip is
+   filtered from the output, so nothing names a competitor on screen. Proxy
+   blackhole is not an air-gap; say so. Do not explain parsers.
+   `make viz` is the picture. It renders offline; say that out loud.
 3. **Beat 3** — `make defect` is the best 30 seconds in the demo. Clock moves,
    spacecraft doesn't. And you did **not** fix it.
 4. **Beat 5** — never cut it. It's what makes the other four credible.

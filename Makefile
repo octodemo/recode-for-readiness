@@ -13,11 +13,12 @@ SHELL := /usr/bin/env bash
 # exactly that in tools/rehearse.sh.
 
 GRAPH   := legacy/graphify-out/graph.json
+GRAPH_HTML := legacy/graphify-out/graph.html
 VECTOR  := pass01
 
 .PHONY: help card preflight rehearse legacy graph offline-proof parity \
         mutants workflows beat1 beat2 beat3 beat4 beat5 beat4b defect \
-        reset prclean pr-plan pr-port clean
+        reset prclean pr-plan pr-port viz clean
 
 help:
 	@echo ""
@@ -44,6 +45,7 @@ help:
 	@echo "  Parts:"
 	@echo "    make legacy         build and run the 1987 FORTRAN deck"
 	@echo "    make graph          build the knowledge graph"
+	@echo "    make viz            open the interactive graph (works offline)"
 	@echo "    make offline-proof  rebuild the graph with egress blackholed"
 	@echo "    make parity         characterization + unit suite (cargo test)"
 	@echo "    make mutants        mutation check (needs a clean tree)"
@@ -62,12 +64,21 @@ rehearse:
 legacy:
 	@$(MAKE) -C legacy check
 
+# Every rebuild regenerates graph.html with a CDN <script> tag in it, so the
+# localize step has to run every time, not once.
 $(GRAPH):
-	@graphify update legacy
+	@graphify update legacy 2>&1 | grep -v -E 'GEMINI_API_KEY|GOOGLE_API_KEY|[Gg]emini' || true
+	@./tools/localize-graph.sh >/dev/null
 
 graph: $(GRAPH)
 	@python3 -c "import json;g=json.load(open('$(GRAPH)'));print('%d nodes, %d edges'%(len(g['nodes']),len(g['links'])))" 2>/dev/null \
 	  || echo "graph built: $(GRAPH)"
+
+# The picture. Self-contained, so this works with the wifi off.
+viz: $(GRAPH)
+	@./tools/localize-graph.sh >/dev/null
+	@echo "  opening $(GRAPH_HTML) -- fully offline, nothing is fetched"
+	@open $(GRAPH_HTML) 2>/dev/null || echo "  open it manually: $(GRAPH_HTML)"
 
 offline-proof:
 	@./tools/offline-proof.sh

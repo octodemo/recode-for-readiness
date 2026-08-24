@@ -29,6 +29,17 @@ MODE="${1:-default}"
 TARGET="legacy"
 BLACKHOLE="http://127.0.0.1:9"   # discard port
 
+# Graphify prints an upsell tip naming a specific third-party model vendor.
+# This demo is delivered jointly with Microsoft, and a competitor's product name
+# on the projector is a distraction nobody in the room needs. The tip is not
+# evidence of anything -- it fires whether or not a key is set -- so dropping it
+# costs the argument nothing. The substance it hints at (there is an optional
+# model-backed layer, and we are not using it) is stated explicitly below in our
+# own words, which is stronger anyway.
+scrub_vendor() {
+  grep -v -E 'GEMINI_API_KEY|GOOGLE_API_KEY|[Gg]emini' || true
+}
+
 restore_wifi() {
   if [[ -n "${WIFI_DEVICE:-}" ]]; then
     echo "  restoring ${WIFI_DEVICE}..."
@@ -65,8 +76,8 @@ if [[ "$MODE" == "--airplane" ]]; then
   echo
 
   echo "  building the graph..."
-  time graphify update "$TARGET"
-  STATUS=$?
+  graphify update "$TARGET" 2>&1 | scrub_vendor
+  STATUS=${PIPESTATUS[0]}
 
 else
   echo "  proxying all egress to ${BLACKHOLE} and stripping model API keys..."
@@ -87,7 +98,8 @@ else
     GOOGLE_API_KEY="" \
     GITHUB_TOKEN="" \
     GH_TOKEN="" \
-    graphify update "$TARGET" || STATUS=$?
+    graphify update "$TARGET" 2>&1 | scrub_vendor
+  STATUS=${PIPESTATUS[0]}
 fi
 
 echo
@@ -100,6 +112,13 @@ fi
 if [[ ! -f "$TARGET/graphify-out/graph.json" ]]; then
   echo "FAILED: no graph.json was produced." >&2
   exit 1
+fi
+
+# The rebuild just regenerated graph.html with a CDN <script> tag in it. Inline
+# the vendored library again so the picture stays openable with the network off.
+# Non-fatal: if this cannot run, the text proof below is still the actual claim.
+if ! ./tools/localize-graph.sh "$TARGET/graphify-out/graph.html" >/dev/null 2>&1; then
+  echo "  (note: graph.html could not be localized -- 'make viz' may need network)"
 fi
 
 python3 - "$TARGET/graphify-out/graph.json" <<'PY'
@@ -125,13 +144,11 @@ echo
 echo "Structural comprehension completed with egress blackholed and every model"
 echo "credential stripped. Parsing is not inference; this part stays in-boundary."
 echo
-# Graphify prints its own "set GEMINI_API_KEY ... for semantic extraction" hint
-# partway up the output. Somebody in the room will notice it. Pinning it here,
-# at the bottom where the narration happens, turns it from a gotcha into the
-# supporting evidence it actually is.
+# Say the quiet part in our own words rather than quoting the tool's upsell.
+# Same admission, none of the vendor branding.
 echo "Note, in graphify's own words above:"
 echo '  "Re-extracting code files ... (no LLM needed)"'
-echo '  "Tip: set GEMINI_API_KEY ... to use Gemini for semantic extraction"'
 echo
-echo "That optional semantic layer is the part we did not use. The call graph"
-echo "above came out of tree-sitter alone."
+echo "The tool does offer an optional model-backed layer for richer semantic"
+echo "labelling. We did not use it, and nothing above depends on it. The call"
+echo "graph came out of parsing alone."

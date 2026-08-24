@@ -206,9 +206,26 @@ make beat2
 
 *Operator note (do not narrate):* the script drops every proxy variable, strips
 model credentials from the environment, points egress at a dead port, and *then*
-builds. It pins graphify's own `(no LLM needed)` line and its `set GEMINI_API_KEY`
-tip at the bottom of the output. Name that tip yourself before someone else spots
-it — see the narration below. Full mechanism is in `tools/` if anyone asks after.
+builds. It pins graphify's own `(no LLM needed)` line at the bottom, and states
+in our own words that there is an optional model-backed layer we did not use.
+Graphify's raw output also prints an upsell tip naming a third-party model
+vendor; `tools/offline-proof.sh` filters that line out, since this is a joint
+session with Microsoft and a competitor's brand on the projector helps nobody.
+The substance it hints at is stated explicitly either way. Full mechanism is in
+`tools/` if anyone asks after.
+
+Now show it. This is the moment people remember.
+
+```bash
+make viz
+```
+
+*Operator note (do not narrate):* opens `legacy/graphify-out/graph.html` in the
+browser. The rendering library is vendored into the repo and inlined into the
+page, so it draws with the wifi physically off — which matters, because you just
+finished saying nothing left the boundary. `make preflight` fails hard if that
+file ever regains a CDN reference. Drag a node or two while you talk; it settles
+and reads well from the back of a room.
 
 > So what came back is a map of the program. Every routine in this thing, and
 > every place one routine reaches for another. About a dozen pieces and the
@@ -226,9 +243,9 @@ it — see the narration below. Full mechanism is in `tools/` if anyone asks aft
 > reading versus asking — is the whole ball game for you all, because reading
 > happens inside your boundary.
 >
-> You can even see the tool offering me an AI upgrade right there on screen.
-> There's a tip telling me to go set a Gemini key. We didn't. Didn't need it for
-> this part.
+> And to be straight with you, the tool does offer an AI upgrade — you can point
+> it at a model and get richer labelling out of it. We didn't. Didn't need it for
+> this part, and nothing you just saw depends on it.
 >
 > And the limit, out loud, because it's a real one — this does not understand
 > your code. It has no opinion about it. It's a map, not a guide. But a map is
@@ -250,6 +267,10 @@ cd legacy && graphify god-nodes --top 5
 >
 > And that's the real architecture. Not the diagram on somebody's wall. And we
 > got it in about a quarter of a second.
+>
+> And before anybody asks — this page isn't calling out to anything either. The
+> whole thing, including the bit that draws it, is sitting in the repo. I could
+> do this on a plane.
 
 ```bash
 graphify explain "ORBPRP"
@@ -295,8 +316,9 @@ cd ..
 **Fallback:** graph queries must run from `legacy/` — the tool resolves
 `graphify-out` relative to the working directory. If you get
 `graph file not found`, you are in the wrong directory. `cd legacy` and repeat.
-If graphify itself is broken: `open legacy/graphify-out/graph.html` and talk
-over the picture — it makes the same point.
+If graphify's CLI is broken: `make viz` and talk over the picture — it makes the
+same point, and the page is self-contained so it does not care whether the CLI,
+or the network, is having a good day.
 
 ---
 
@@ -674,25 +696,25 @@ morning. Re-measure after any narration edit.
 |---|---|---|---|---|---|
 | 0 | What the thing does | 1:45 | — | 1:45 | 1:45 |
 | 1 | The deck still runs | 2:36 | 0:05 | 2:41 | 4:26 |
-| 2 | Map it, in-boundary | 4:53 | 0:10 | 5:03 | 9:29 |
-| 3 | Characterize and port | 3:28 | 0:05 | 3:33 | 13:02 |
-| 4 | Agent plans | 2:10 | 1:45 | 3:55 | 16:57 |
-| 4b | Agent writes the port | 4:22 | 1:00 | 5:22 | 22:19 |
-| 5 | Mutation check and close | 1:36 | 0:10 | 1:46 | 24:05 |
+| 2 | Map it, in-boundary | 5:06 | 0:15 | 5:21 | 9:47 |
+| 3 | Characterize and port | 3:28 | 0:05 | 3:33 | 13:20 |
+| 4 | Agent plans | 2:10 | 1:45 | 3:55 | 17:15 |
+| 4b | Agent writes the port | 4:22 | 1:00 | 5:22 | 22:37 |
+| 5 | Mutation check and close | 1:36 | 0:10 | 1:46 | 24:23 |
 
 The "commands" time on Beats 4 and 4b is you walking a pull request in the
 browser, which is the one place you will naturally run long.
 
 ### Read this before you build the run of show
 
-**24:05 is over your slot. Run Beat 4 or Beat 4b — not both.** They make the
+**24:23 is over your slot. Run Beat 4 or Beat 4b — not both.** They make the
 same argument twice, and the second telling is always the one that gets rushed.
 
 | Run of show | Lands at | Pick it when |
 |---|---|---|
-| **4b, drop 4** | 20:10 | **Default.** The room's real objection is "can AI actually build anything." 4b answers it and still shows `safe-outputs`. |
-| 4, drop 4b | 18:43 | The room is governance-first — auditors, ISSMs, ATO people. A plan a human approves is the friendlier first contact. |
-| Both | 24:05 | Only if you genuinely have 25+ minutes and no Q&A. |
+| **4b, drop 4** | 20:28 | **Default.** The room's real objection is "can AI actually build anything." 4b answers it and still shows `safe-outputs`. |
+| 4, drop 4b | 19:01 | The room is governance-first — auditors, ISSMs, ATO people. A plan a human approves is the friendlier first contact. |
+| Both | 24:23 | Only if you genuinely have 25+ minutes and no Q&A. |
 
 Either way you still dispatch **both** runs at T-10, because it costs nothing
 and gives you a live spare if one run is slow or fails.
@@ -712,8 +734,8 @@ hands (0:30).
 | Beat 1 → skip the show of hands, skip the aside | 0:55 | Colder open |
 | Beat 2 → drop the "paste it into a model" paragraph | 0:30 | Weakens the *why AI needs this* argument. Last resort. |
 
-Applied on top of the 4b-only run of show (20:10), the first two cuts get you
-to **18:30**, and the first three to **17:15**. If you are running 4b and your
+Applied on top of the 4b-only run of show (20:28), the first two cuts get you
+to **18:48**, and the first three to **17:33**. If you are running 4b and your
 slot includes Q&A, **take the first two cuts before you walk up** — 4b is the
 longest beat in the deck and it is the one you least want to rush.
 
