@@ -1,0 +1,29 @@
+test_expected_files_match_binary (tests.test_characterization.CharacterizationTest.test_expected_files_match_binary)
+The checked-in expected/ files must still reflect the real binary. ... ok
+test_parity (tests.test_characterization.CharacterizationTest.test_parity) ... ok
+test_battery_uses_quadratic_fit (tests.test_units.CalibrationTest.test_battery_uses_quadratic_fit) ... ok
+test_red_low_screening (tests.test_units.CalibrationTest.test_red_low_screening) ... ok
+test_solar_array_angle_wraps (tests.test_units.CalibrationTest.test_solar_array_angle_wraps) ... ok
+test_empty_input_is_initial_value (tests.test_units.CrcTest.test_empty_input_is_initial_value) ... ok
+test_known_vector (tests.test_units.CrcTest.test_known_vector) ... ok
+test_integer_overflow_fills_asterisks (tests.test_units.FortranFormatTest.test_integer_overflow_fills_asterisks) ... ok
+test_real_fits (tests.test_units.FortranFormatTest.test_real_fits) ... ok
+test_real_overflow_fills_asterisks (tests.test_units.FortranFormatTest.test_real_overflow_fills_asterisks) ... ok
+test_zero_padded_integer (tests.test_units.FortranFormatTest.test_zero_padded_integer) ... ok
+test_channel_11_is_coupled_to_channel_8_low_byte (tests.test_units.FrameTest.test_channel_11_is_coupled_to_channel_8_low_byte)
+Solar array angle is reconstructed from the low nibble of byte 28. ... ok
+test_comment_records_are_skipped (tests.test_units.FrameTest.test_comment_records_are_skipped) ... ok
+test_crc_failure (tests.test_units.FrameTest.test_crc_failure) ... ok
+test_malformed_record_raises (tests.test_units.FrameTest.test_malformed_record_raises) ... ok
+test_roundtrip (tests.test_units.FrameTest.test_roundtrip) ... ok
+test_sync_loss (tests.test_units.FrameTest.test_sync_loss) ... ok
+test_longitude_is_wrapped (tests.test_units.OrbitTest.test_longitude_is_wrapped) ... ok
+test_single_precision_defect_is_preserved (tests.test_units.OrbitTest.test_single_precision_defect_is_preserved)
+Frames four seconds apart must propagate to the same SSP. ... ok
+test_gps_epoch (tests.test_units.TimebaseTest.test_gps_epoch) ... ok
+test_leap_year_day_of_year (tests.test_units.TimebaseTest.test_leap_year_day_of_year) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.200s
+
+OK

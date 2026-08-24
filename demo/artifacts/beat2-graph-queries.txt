@@ -1,0 +1,20 @@
+God nodes (most connected):
+  1. geosat - 8 edges
+  2. rdfrm() - 3 edges
+  3. tlmdec() - 3 edges
+  4. engcnv() - 2 edges
+  5. limchk() - 2 edges
+
+Node: orbprp()
+  ID:        src_geosat_orbprp
+  Source:    legacy/src/geosat.f L522
+  Type:      code
+  Community: geosat
+  Degree:    2
+
+Connections (2):
+  <-- geosat.f [defines] [EXTRACTED] legacy/src/geosat.f:L522
+  <-- geosat [calls] [EXTRACTED] legacy/src/geosat.f:L78
+
+Shortest path (2 hops):
+  geosat --calls [EXTRACTED]--> tlmdec() --calls [EXTRACTED]--> crcchk()

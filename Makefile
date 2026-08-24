@@ -75,15 +75,11 @@ beat1:
 	@$(MAKE) -C legacy check
 
 # ~4 min. Comprehension without sending the source anywhere.
+# Deliberately the proof only. The graph queries are typed live from legacy/ so
+# that whichever one is being narrated is the last thing on screen.
 beat2:
 	@clear
 	@./tools/offline-proof.sh
-	@echo
-	@echo "== the de facto architecture =="
-	@cd legacy && graphify god-nodes --top 5
-	@echo
-	@echo "== what does ORBPRP do, and who depends on it? =="
-	@cd legacy && graphify explain "ORBPRP"
 
 # ~5 min. Pin the behaviour, port it, prove it did not move.
 beat3:
@@ -106,12 +102,21 @@ beat5:
 
 # ---------------------------------------------------------------- housekeeping
 
+# Restores ONLY the paths a demo run can mutate. It deliberately does not do
+# `git checkout -- .`, which silently discards unrelated uncommitted work --
+# that has already cost this repo one round of edits.
 reset:
-	@git checkout -- . 2>/dev/null || true
+	@git checkout -- legacy/src modern/geosat_modern modern/tests 2>/dev/null || true
 	@$(MAKE) -C legacy clean >/dev/null 2>&1 || true
 	@find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 	@$(MAKE) -C legacy all >/dev/null 2>&1
-	@echo "reset -- repo is at stage-start state"
+	@rest=$$(git status --porcelain -- . ':!legacy/graphify-out' ':!legacy/src' ':!modern' | grep -v '^??' || true); \
+	 if [ -n "$$rest" ]; then \
+	   echo "reset -- mutation targets restored. Left alone (uncommitted, not mine to revert):"; \
+	   echo "$$rest" | sed 's/^/  /'; \
+	 else \
+	   echo "reset -- repo is at stage-start state"; \
+	 fi
 
 clean:
 	@$(MAKE) -C legacy clean

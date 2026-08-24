@@ -12,6 +12,9 @@
 #
 #   default     Blackhole every proxy variable and strip every model API key,
 #               then rebuild. Reproducible, safe to run anywhere, works in CI.
+#               This is a proxy-level block, not an air-gap: a process opening
+#               a raw socket could still egress. Use --airplane for the
+#               stronger claim.
 #
 #   --airplane  Physically power down Wi-Fi, rebuild, then restore it. More
 #               convincing in a room. macOS only, and it will interrupt any
@@ -109,14 +112,15 @@ links = graph["links"]
 calls = [e for e in links if e.get("relation") == "calls"]
 inferred = [e for e in links if e.get("confidence") == "INFERRED"]
 
-print("Graph built with the network unavailable:")
+print("Graph built with no reachable network and no model credentials:")
 print("  %d nodes, %d edges, %d resolved call edges" % (len(nodes), len(links), len(calls)))
 print("  %d EXTRACTED / %d INFERRED" % (len(links) - len(inferred), len(inferred)))
-print("  token cost: 0 input, 0 output -- no model was invoked")
+print("  no model credentials were present, and the build did not need one")
 
 if not calls:
     sys.exit("FAILED: no call edges resolved; the graph is not usable.")
 PY
 
 echo
-echo "PROVED: comprehension ran entirely in-boundary. Nothing left the machine."
+echo "Structural comprehension completed with egress blackholed and every model"
+echo "credential stripped. Parsing is not inference; this part stays in-boundary."

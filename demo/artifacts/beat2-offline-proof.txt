@@ -1,0 +1,16 @@
+Offline proof: rebuilding the GEOSAT knowledge graph with no network.
+
+  proxying all egress to http://127.0.0.1:9 and stripping model API keys...
+
+Re-extracting code files in legacy (no LLM needed)...
+[graphify watch] Rebuilt: 12 nodes, 19 edges, 4 communities
+[graphify watch] graph.json, graph.html and GRAPH_REPORT.md updated in legacy/graphify-out
+Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.
+Tip: set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini for semantic extraction.
+
+Graph built with the network unavailable:
+  12 nodes, 19 edges, 9 resolved call edges
+  19 EXTRACTED / 0 INFERRED
+  token cost: 0 input, 0 output -- no model was invoked
+
+PROVED: comprehension ran entirely in-boundary. Nothing left the machine.
