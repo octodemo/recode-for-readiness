@@ -16,7 +16,7 @@ make                    # this menu, any time you forget
 
 ```bash
 make preflight          # want: 0 failed
-make rehearse           # want: REHEARSAL PASSED (7/7)
+make rehearse           # want: REHEARSAL PASSED (8/8)
 make reset
 ```
 
@@ -39,7 +39,7 @@ Agent takes ~8m30s. Beat 4 is ~16 min in. Do not skip this.
 |---|---|---|---|
 | 1 | Deck still runs | `make beat1` | 2 |
 | 2 | In-boundary comprehension | `make beat2` → then queries below | 4 |
-| 3 | Characterize + port | `make beat3` → `make defect` | 5 |
+| 3 | Characterize + port to Rust | `make beat3` → `make defect` | 5 |
 | 4 | Agent in CI | *right terminal*, see below | 5 |
 | 5 | Tests can fail | `make beat5` | 2 |
 
@@ -107,6 +107,7 @@ All real captured output, not mockups. Never debug live.
 |---|---|
 | `graph file not found` | you're not in `legacy/` |
 | parity fails after `make mutants` | `make reset` |
+| `cargo` not found | `source ~/.cargo/env`, then `make preflight` |
 | `make mutants` refuses | `git checkout -- legacy/src modern` |
 | agent run still going | `demo/artifacts/` — you dispatched late |
 

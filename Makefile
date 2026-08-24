@@ -5,6 +5,13 @@
 
 SHELL := /usr/bin/env bash
 
+# NOTE: macOS ships GNU Make 3.81, which silently ignores `.SHELLFLAGS`
+# (added in 3.82). Setting it here would look like protection and provide
+# none. Any recipe that pipes therefore says `set -o pipefail;` inline --
+# otherwise `cargo test | tail` reports tail's exit status and a completely
+# failing suite reads as success. This repo has already been bitten by
+# exactly that in tools/rehearse.sh.
+
 GRAPH   := legacy/graphify-out/graph.json
 VECTOR  := pass01
 
@@ -94,7 +101,7 @@ beat3:
 	@clear
 	@echo "== 1987 FORTRAN -> Rust, byte-for-byte against the original binary =="
 	@echo
-	@cd modern && cargo test 2>&1 | grep -Ev '^\s*$$' | tail -22
+	@set -o pipefail; cd modern && cargo test 2>&1 | grep -Ev '^\s*$$' | tail -22
 
 # The single-precision time-overflow defect, preserved on purpose.
 #
@@ -105,13 +112,13 @@ defect:
 	@clear
 	@echo "== frames four seconds apart, per the 1987 binary =="
 	@$(MAKE) -C legacy all >/dev/null 2>&1
-	@./legacy/build/geosat < legacy/tests/golden/$(VECTOR).tlm \
-	  | grep -n "SCID=\|UTC \|SSP LAT" | head -9
+	@set -o pipefail; ./legacy/build/geosat < legacy/tests/golden/$(VECTOR).tlm \
+	  | grep -n "SCID=\|UTC \|SSP LAT" | sed -n '1,9p'
 	@echo
 	@echo "== and the Rust port, on the same input =="
 	@cd modern && cargo build --quiet 2>/dev/null
-	@./modern/target/debug/geosat_modern < legacy/tests/golden/$(VECTOR).tlm \
-	  | grep -n "SCID=\|UTC \|SSP LAT" | head -9
+	@set -o pipefail; ./modern/target/debug/geosat_modern < legacy/tests/golden/$(VECTOR).tlm \
+	  | grep -n "SCID=\|UTC \|SSP LAT" | sed -n '1,9p'
 	@echo
 	@echo "The clock moves. The spacecraft does not. That is the bug --"
 	@echo "reproduced exactly, on purpose, and NOT fixed."

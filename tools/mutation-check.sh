@@ -68,13 +68,28 @@ run_mutation() {
     return
   fi
 
+  # Distinguish the two gates on purpose.
+  #
+  # In a typed language it is easy to write a mutation the COMPILER rejects and
+  # then claim the test suite caught it. That is not the claim this demo makes.
+  # Every mutation below is meant to compile cleanly and be caught by the
+  # characterization suite; a compile failure is reported honestly as such, and
+  # is treated as a defect in the mutation, not a success.
+  if ! (cd modern && cargo build --quiet >/dev/null 2>&1); then
+    printf 'REJECTED BY COMPILER  <-- mutation is not a valid program\n'
+    FAILED=1
+    git checkout -- "$file"
+    touch_sources
+    return
+  fi
+
   # Deliberately unpiped and fully redirected: piping this into `tail` would
   # report tail's exit status, which reads green no matter what cargo did.
   if (cd modern && cargo test --quiet >/dev/null 2>&1); then
     printf 'SURVIVED  <-- blind spot: %s\n' "$rationale"
     FAILED=1
   else
-    printf 'caught\n'
+    printf 'caught by the suite\n'
   fi
 
   git checkout -- "$file"
@@ -91,7 +106,7 @@ run_mutation "crc polynomial off by one bit" \
 
 run_mutation "silently fix the float32 defect" \
   "modern/src/orbit.rs" \
-  's|let dt = (gps_seconds - ELEMENT_EPOCH_GPS) as f32;|let dt = (gps_seconds - ELEMENT_EPOCH_GPS) as f64;|; s|let u = TWO_PI \* (dt / period);|let u = (TWO_PI as f64 * (dt / period as f64)) as f32;|' \
+  's|let dt = (gps_seconds - ELEMENT_EPOCH_GPS) as f32;|let dt = (gps_seconds - ELEMENT_EPOCH_GPS) as f64;|; s|let u = TWO_PI \* (dt / period);|let u = TWO_PI as f64 * (dt / period as f64);|; s|let arg_lat = fmod(u, TWO_PI);|let arg_lat = (u % (TWO_PI as f64)) as f32;|; s|let lon_ascending = ELEMENT_RAAN_DEG - rate \* dt;|let lon_ascending = ELEMENT_RAAN_DEG - (rate as f64 * dt) as f32;|' \
   "improving precision changes every archived subsatellite point"
 
 run_mutation "widen the overflowing F9.3 field" \

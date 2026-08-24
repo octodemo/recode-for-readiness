@@ -23,11 +23,19 @@
 //!    equivalent -- it produces a double-rounded result that diverges from the
 //!    original once the operands are large.
 //!
-//! What remains here are the transcendentals. FORTRAN `REAL(4)` intrinsics and
-//! the reference Python port both evaluate these in double precision and round
-//! the result to binary32, so these shims do exactly that rather than calling
-//! the platform's `sinf`/`cosf`. The difference is at most one bit, but the
-//! whole claim of this repository is that there is no difference at all.
+//! What remains here are the transcendentals, and this is the one place the
+//! parity claim is narrower than it looks. FORTRAN `REAL(4)` intrinsics
+//! resolve to the platform's `sinf`/`cosf`/`asinf`/`atan2f`. On the macOS
+//! target these are defined as the double-precision routine rounded once to
+//! binary32, which is exactly what the shims below do -- and that is *why*
+//! byte parity holds against the compiled deck. glibc, by contrast, ships
+//! properly-rounded single-precision routines that can differ from this by up
+//! to 1 ULP at some inputs.
+//!
+//! So: the arithmetic parity above is a language guarantee. The transcendental
+//! parity is an empirical result on pinned vectors and a pinned target. Anyone
+//! rebuilding this for a different ground station re-runs the characterization
+//! suite there before trusting it. Do not state it more strongly than that.
 
 /// `sin(x)` evaluated in double precision, rounded once to binary32.
 pub fn sin(x: f32) -> f32 {

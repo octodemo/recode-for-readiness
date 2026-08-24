@@ -1,10 +1,10 @@
 Mutation check -- each change below must be detected by the suite.
 
-  crc polynomial off by one bit      caught
-  silently fix the float32 defect    caught
-  widen the overflowing F9.3 field   caught
-  decouple channel 11 from byte 28   caught
-  refresh the stale leap-second count caught
-  drop the eclipse thermistor fit    caught
+  crc polynomial off by one bit      caught by the suite
+  silently fix the float32 defect    caught by the suite
+  widen the overflowing F9.3 field   caught by the suite
+  decouple channel 11 from byte 28   caught by the suite
+  refresh the stale leap-second count caught by the suite
+  drop the eclipse thermistor fit    caught by the suite
 
 All mutations were caught. The characterization suite has teeth.

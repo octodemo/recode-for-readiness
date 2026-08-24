@@ -31,14 +31,14 @@ make preflight
 ```
 
 Wants `0 failed`. Warnings on the `gh` lines are survivable; Beat 4 falls back
-to `demo/artifacts/`. A FAIL on `gfortran`, `python3`, or `graphify` is not
+to `demo/artifacts/`. A FAIL on `gfortran`, `cargo`, or `graphify` is not
 survivable — fix it before you walk out.
 
 ```bash
 make rehearse
 ```
 
-Must print `REHEARSAL PASSED`. This is seven checks including the byte-parity
+Must print `REHEARSAL PASSED`. This is eight checks including the byte-parity
 suite and the mutation check. If it does not pass, you are demoing from
 `demo/artifacts/` and you should decide that now, calmly, not on stage.
 
@@ -208,16 +208,33 @@ If graphify itself is broken: `open legacy/graphify-out/graph.html`.
 make beat3
 ```
 
-Twenty-one tests. Read the parity result.
+Twenty-two tests. Read the parity result.
 
-> There is a Python port of this program in the repo. And the test you're
-> looking at doesn't check that the Python is *correct*. It compiles the 1987
-> FORTRAN, runs both of them on the same telemetry, and compares the output
-> byte for byte.
+> There's a Rust port of this program in the repo. And the test you're looking
+> at doesn't check that the Rust is *correct*. It compiles the 1987 FORTRAN,
+> runs both of them on the same telemetry, and compares the output byte for
+> byte.
 >
 > And that distinction is the whole thing. Because downstream of this there's
 > an archive loader that parses this output by column position. So "equivalent"
 > gets you an outage. It has to be identical.
+>
+> Quick note on why Rust, since somebody's going to ask. This deck declares
+> every value as REAL(4) — 32-bit float. Rust has that as a native type, so the
+> add, subtract, multiply and divide in the port match the 1987 numeric model
+> to the bit, natively, instead of being emulated. And Rust won't fuse a
+> multiply and an add behind your back, which is the exact thing we had to
+> switch off in the FORTRAN compiler to make the two comparable at all.
+>
+> I'll caveat the one place that's not free — sines and cosines still go
+> through the platform math library, so "byte identical" is a claim about the
+> vectors we pinned on the hardware we pinned them on, not a law of physics.
+> You'd re-pin on your target.
+>
+> Granted, all of that's a nice-to-have. The part that actually matters to you
+> is that it's one binary — no interpreter, no garbage collector, and a
+> zero-dependency crate graph. That's a much easier conversation with your ISSO
+> than a language runtime on a closed network.
 
 Now the part the room remembers:
 
@@ -226,9 +243,13 @@ make defect
 ```
 
 > So while we were doing this, we found a bug. And I'd rather show you the
-> symptom than describe it. Look at those three frames — the frame counter goes
-> up, the UTC timestamp goes up, and the sub-satellite point is identical. Same
-> latitude, same longitude, three frames in a row.
+> symptom than describe it. Top block is the 1987 binary. Look at those three
+> frames — the frame counter goes up, the UTC timestamp goes up, and the
+> sub-satellite point is identical. Same latitude, same longitude, three frames
+> in a row.
+>
+> Bottom block is the Rust port on the same telemetry. Same three frames, same
+> frozen position, same everything.
 >
 > The elapsed-time value in the orbit propagator is about seven hundred and
 > thirty million seconds and it's carried in single precision. It doesn't fit.
@@ -256,6 +277,12 @@ make defect
 failure and I'll take it offline — here's this morning's run"* and
 `cat demo/artifacts/beat3-parity.txt`. A characterization suite that fails
 loudly is on-message; pretending it passed is not.
+
+**If asked "did you rewrite this by hand or did AI do it?"** — say it
+straight: the port was written with Copilot, and every line of it is only
+trustworthy because the characterization suite was written *first*, against
+the compiled original. The tests are the deliverable. The port is the easy
+part.
 
 ---
 
@@ -342,12 +369,18 @@ not a mockup. Do not refresh the Actions page in front of the room.
 make beat5
 ```
 
-Six mutations, six caught.
+Six mutations, six `caught by the suite`.
 
 > That introduces six real defects into the code — flips a bit in the CRC
 > polynomial, quietly "fixes" the float32 bug, decouples the two telemetry
-> channels that share a byte — and it requires the suite to catch every one. It does. That's the difference between tests that pass and
-> tests that mean something.
+> channels that share a byte — and it requires the suite to catch every one.
+> It does. That's the difference between tests that pass and tests that mean
+> something.
+>
+> And look at the wording there — "caught by the suite." That's deliberate.
+> In a typed language it's really easy to write a fake mutation the *compiler*
+> rejects and then take credit for it. Every one of these compiles clean. The
+> tests are what caught them.
 >
 > So, three things to take with you.
 >
@@ -394,7 +427,7 @@ rest of it credible.
 | Symptom | Cause | What you do |
 |---|---|---|
 | `graph file not found` | graphify resolves `graphify-out` from cwd | `cd legacy` first |
-| Parity suite fails right after `make mutants` | stale `.pyc` from a same-size, same-tick revert | `make reset`; the harness now sets `PYTHONDONTWRITEBYTECODE` |
+| Parity suite fails right after `make mutants` | stale cargo fingerprint from a same-mtime revert | `make reset`; the harness `touch`es every source on each mutation revert, so this should not recur |
 | `make mutants` refuses to run | mutation targets are dirty | commit or `git checkout -- legacy/src modern` |
 | Agentic run still going at Beat 4 | dispatched too late; it needs ~8m30s | `demo/artifacts/` |
 | Agentic run fails on the engine | org Copilot billing / missing token | `demo/artifacts/` — do not troubleshoot live |

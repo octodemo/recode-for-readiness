@@ -27,7 +27,7 @@ interface down for the stronger claim.
 
 **Behaviour is pinned before it is moved.** `legacy/tests/golden/` holds
 telemetry frames and `legacy/tests/expected/` holds the bytes the 1987 binary
-emits for them. The Python port in `modern/` is asserted byte-for-byte against
+emits for them. The Rust port in `modern/` is asserted byte-for-byte against
 the real compiled binary, not against a description of it.
 
 **The tests are proven able to fail.** A green suite is not evidence until it
@@ -63,7 +63,7 @@ help → the proof is real.*
 | 0.5 | `gh workflow run modernization-plan.lock.yml -f routine=ORBPRP` | nothing | the agent needs ~8m30s of head start |
 | 1 | `make beat1` | the 1987 deck compiles and runs | the legacy system is real, not a slide |
 | 2 | `make beat2`, then graphify queries from `legacy/` | call graph, no model involved | comprehension without shipping code to a vendor |
-| 3 | `make beat3`, then `make defect` | byte-parity port; clock advances, position frozen | tests lock in behaviour, defects included |
+| 3 | `make beat3`, then `make defect` | FORTRAN → Rust at byte parity; clock advances, position frozen | tests lock in behaviour, defects included |
 | 4 | `gh pr list`, view the newest PR | agent-authored draft plan | the agent works in CI, inside a fence |
 | 5 | `make beat5` | six mutants, six caught | the tests can actually fail |
 
@@ -109,14 +109,15 @@ legacy/
   tests/expected/       byte-exact output of the legacy binary
   graphify-out/         the knowledge graph, committed so CI can read it
 modern/
-  geosat_modern/        behaviour-preserving Python port, stdlib only
+  Cargo.toml            zero dependencies, on purpose -- builds with no network
+  src/                  behaviour-preserving Rust port
   tests/                characterization (byte parity) + unit tests
 tools/
   preflight.sh          dependency check
   offline-proof.sh      rebuild the graph with egress blackholed
   rehearse.sh           full end-to-end regression gate
   mutation-check.sh     prove the suite can fail
-  gen_frames.py         deterministic frame generator
+  gen_frames.py         deterministic frame generator (build-time only)
 .github/workflows/      three gh-aw agentic workflows
 demo/
   DEMO-RUNBOOK.md       the stage script, verbatim
@@ -143,8 +144,8 @@ already depends on, and each is pinned by a test:
 2. **Stale leap-second constant** — `LEAP_SECONDS = 18`, last updated
    2016-12-31.
 3. **Asterisk fill on numeric overflow.** FORTRAN's `F9.3` edit descriptor
-   emits `*********` when a value will not fit. Python widens the field
-   silently, so `modern/geosat_modern/fortran.py` reimplements the FORTRAN
+   emits `*********` when a value will not fit. Rust's formatter widens the
+   field silently, so `modern/src/fortran.rs` reimplements the FORTRAN
    behaviour.
 4. **Channel 8 and channel 11 share a byte.** Solar array angle is
    reconstructed from the low nibble of byte 28, which is also the low byte of
@@ -158,6 +159,9 @@ not an engineering one, and it does not belong in a refactor.
 ## Requirements
 
 - `gfortran` (`brew install gcc`)
-- `python3` — stdlib only, no packages to install
+- Rust (`rustup`) — the port has no third-party crates, so `cargo build` works
+  with the network off
+- `python3` — used by `graphify` and the frame generator only; the
+  flight-parity port itself is Rust with no runtime dependencies
 - `graphify` (`uv tool install graphifyy`)
 - `gh` with the `gh-aw` extension, for the live agentic beat only

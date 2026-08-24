@@ -1,3 +1,35 @@
+[3J[H[2J== legacy/src/geosat.f -- GEOSAT telemetry processor, 1987 ==
+!     ==================================================================
+!     GEOSAT TELEMETRY PROCESSOR
+!     SPACE VEHICLE 42 -- COMMAND AND TELEMETRY GROUND SEGMENT
+!
+!     ORIGINAL AUTHOR : R. HALVORSEN, GROUND SYSTEMS BRANCH   1987-03
+!     PORTED VAX/VMS -> ALPHA/OSF                             1994-08
+!     Y2K WINDOWING PATCH, MEMO GS-98-441                     1998-11
+!     THERMISTOR FIT REVISED, ECO 91-217                      1991-06
+!     MAINTAINED BY   : (VACANT)
+!
+!     THIS DECK CONTAINS THE ENTIRE FLIGHT TELEMETRY PROCESSING CHAIN.
+!     IT WAS DELIVERED AS A SINGLE COMPILATION UNIT BECAUSE THE
+!     ORIGINAL VMS BUILD PROCEDURE COULD NOT RESOLVE THE OVERLAY
+!     SEGMENTS OTHERWISE (SEE MEMO GS-89-112).  IT HAS NEVER BEEN
+!     SPLIT.
+!
+!     BUILD:  make
+!     RUN:    ./build/geosat < tests/golden/pass01.tlm
+!     ==================================================================
+
+!     ==================================================================
+!     GEOSAT TELEMETRY PROCESSOR -- MAIN DRIVER
+!
+!     READS HEX ENCODED TELEMETRY FRAMES FROM STANDARD INPUT, DECOMS
+!     EACH FRAME, CONVERTS TO ENGINEERING UNITS, SCREENS AGAINST THE
+!     ON ORBIT LIMIT SET, PROPAGATES A QUICK LOOK SUBSATELLITE POINT,
+!     AND WRITES A PASS SUMMARY TO STANDARD OUTPUT.
+!
+
+642 lines. One compilation unit.
+
   PASS  pass01
   PASS  pass02
   PASS  pass03

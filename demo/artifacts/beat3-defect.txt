@@ -1,4 +1,4 @@
-== frames four seconds apart, per the 1987 binary ==
+[3J[H[2J== frames four seconds apart, per the 1987 binary ==
 2:SCID= 42  APID=  7  FRAME=    100000
 3:UTC 2023-01-06 00:00:00  DOY=006
 4:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
@@ -9,4 +9,16 @@
 35:UTC 2023-01-06 00:00:08  DOY=006
 36:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
 
-The clock moves. The spacecraft does not. That is the bug.
+== and the Rust port, on the same input ==
+2:SCID= 42  APID=  7  FRAME=    100000
+3:UTC 2023-01-06 00:00:00  DOY=006
+4:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+18:SCID= 42  APID=  7  FRAME=    100001
+19:UTC 2023-01-06 00:00:04  DOY=006
+20:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+34:SCID= 42  APID=  7  FRAME=    100002
+35:UTC 2023-01-06 00:00:08  DOY=006
+36:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+
+The clock moves. The spacecraft does not. That is the bug --
+reproduced exactly, on purpose, and NOT fixed.
