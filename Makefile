@@ -16,7 +16,8 @@ GRAPH   := legacy/graphify-out/graph.json
 VECTOR  := pass01
 
 .PHONY: help card preflight rehearse legacy graph offline-proof parity \
-        mutants workflows beat1 beat2 beat3 beat4 beat5 defect reset clean
+        mutants workflows beat1 beat2 beat3 beat4 beat5 beat4b defect \
+        reset prclean pr-plan pr-port clean
 
 help:
 	@echo ""
@@ -27,6 +28,7 @@ help:
 	@echo "    make preflight      check every dependency, name what is missing"
 	@echo "    make rehearse       run every offline beat end to end"
 	@echo "    make reset          return the repo to its stage-start state"
+	@echo "    make prclean        close stale agent PRs from earlier runs"
 	@echo ""
 	@echo "  On stage:"
 	@echo "    make beat1          the deck still runs, and nobody knows why"
@@ -34,7 +36,10 @@ help:
 	@echo "    make beat3          characterize, port to Rust, prove byte parity"
 	@echo "    make defect         the clock moves, the spacecraft does not"
 	@echo "    make beat4          hand the loop to an agent, in CI"
+	@echo "    make beat4b         the agent writes the port, and cannot cheat"
 	@echo "    make beat5          prove the tests can fail"
+	@echo "    make pr-plan        open the agent's plan PR   (beat 4)"
+	@echo "    make pr-port        open the agent's port PR    (beat 4b)"
 	@echo ""
 	@echo "  Parts:"
 	@echo "    make legacy         build and run the 1987 FORTRAN deck"
@@ -124,6 +129,18 @@ defect:
 	@echo "reproduced exactly, on purpose, and NOT fixed."
 
 # ~5 min. The loop runs in CI, as a reviewable pull request.
+# The fence is the whole argument in beat 4b, so show it rather than describe
+# it. allowed-files is what the pull request is checked against.
+beat4b:
+	@clear
+	@echo "== what the implement agent is allowed to change =="
+	@echo
+	@sed -n '/^safe-outputs:/,/^---/p' \
+	    .github/workflows/modernization-implement.md | sed '$$d' | sed 's/^/  /'
+	@echo
+	@echo "  legacy/src (the oracle), legacy/tests (the evidence),"
+	@echo "  modern/tests (the judge) are all absent from that list."
+
 beat4:
 	@clear
 	@echo "== compiled agentic workflows =="
@@ -141,6 +158,19 @@ beat5:
 # Restores ONLY the paths a demo run can mutate. It deliberately does not do
 # `git checkout -- .`, which silently discards unrelated uncommitted work --
 # that has already cost this repo one round of edits.
+# Between runs. Every dispatch opens a new PR on a new branch, so without this
+# you accumulate near-identical PRs and end up picking one out of a list on
+# stage. Keeps the newest for the routine each beat actually demos.
+prclean:
+	@./tools/prclean.sh $(PRCLEAN_ARGS)
+
+# Resolve and open the right PR by name, so you never scan a list live.
+pr-plan:
+	@./tools/openpr.sh plan
+
+pr-port:
+	@./tools/openpr.sh port
+
 reset:
 	@git checkout -- legacy/src modern/src modern/tests 2>/dev/null || true
 	@$(MAKE) -C legacy clean >/dev/null 2>&1 || true

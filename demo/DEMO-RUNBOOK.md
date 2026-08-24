@@ -494,7 +494,7 @@ gh workflow run modernization-implement.lock.yml \
 Show the fencing first. This is the whole beat.
 
 ```bash
-grep -A6 "allowed-files" .github/workflows/modernization-implement.md
+make beat4b
 ```
 
 > Now — this agent writes Rust. Real code, into the real port. So look at what
@@ -628,6 +628,40 @@ Six mutations, six `caught by the suite`.
 > something of yours.
 
 ---
+
+## The pull requests from last time
+
+Every dispatch opens a **new** pull request on a **new** branch. Nothing is
+reused and nothing is overwritten. So if you rehearse twice and then run it for
+real, there are six open pull requests with nearly identical titles and you are
+picking one out of a list with a projector on.
+
+Two commands handle it.
+
+```bash
+make prclean      # night before: close the stale ones
+make pr-plan      # on stage: open the right one for beat 4
+make pr-port      # on stage: open the right one for beat 4b
+```
+
+`prclean` keeps the newest pull request **for the routine each beat actually
+demos** — the ORBPRP plan and the TIMCNV port — and closes the rest with a
+comment saying why. It only ever touches `plan/*` and `port/*` branches, which
+is what the workflows create, so a branch you made by hand is never in scope.
+
+Why keep one at all: a real pull request in a browser is a much better live
+fallback than the frozen markdown in `demo/artifacts/`. If your run is slow, or
+the wifi in the room is what wifi in a conference room usually is, you open the
+one from last night and the room cannot tell the difference. Close everything
+with `make prclean PRCLEAN_ARGS=--all` if you would rather start clean.
+
+`make pr-plan` and `make pr-port` resolve the right pull request by routine and
+open it, so you never scan a list live. If the run has not finished, they say so
+and print the `less demo/artifacts/...` command instead of failing quietly.
+
+**Leave the kept ones open, and leave them as drafts.** If somebody asks whether
+anything merged, the honest answer is the good answer: no, a human has not
+approved these yet, and that is the point.
 
 ## Timing card
 

@@ -17,7 +17,8 @@ make                    # this menu, any time you forget
 ```bash
 make preflight          # want: 0 failed
 make rehearse           # want: REHEARSAL PASSED (8/8)
-make reset
+make reset              # working tree
+make prclean            # open PRs -- closes stale runs, keeps one of each
 ```
 
 `rehearse` not passing means you demo from `demo/artifacts/`. Decide that now,
@@ -59,6 +60,15 @@ graphify explain "ORBPRP"
 graphify path "geosat" "crcchk"
 cd ..
 ```
+
+**Opening the agent's PR** — never scan the list on stage:
+
+```bash
+make pr-plan            # beat 4  -- newest ORBPRP plan PR
+make pr-port            # beat 4b -- newest TIMCNV port PR
+```
+
+Says so and points at `demo/artifacts/` if the run isn't done.
 
 **Beat 4** — right terminal:
 

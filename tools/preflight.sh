@@ -17,6 +17,13 @@ ok()   { printf '  \033[32mPASS\033[0m  %s\n' "$1"; PASS=$((PASS + 1)); }
 bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAIL=$((FAIL + 1)); }
 warn() { printf '  \033[33mWARN\033[0m  %s\n' "$1"; WARN=$((WARN + 1)); }
 
+# A warning that specifically threatens the LIVE agentic beat, as opposed to
+# housekeeping. Kept separate so that tidy-up noise does not print a scary
+# "beat 4 may fall back" verdict at the bottom and send you chasing a network
+# problem you do not have.
+LIVE_RISK=0
+warn_live() { warn "$1"; LIVE_RISK=$((LIVE_RISK + 1)); }
+
 have() { command -v "$1" >/dev/null 2>&1; }
 
 echo
@@ -70,25 +77,25 @@ echo
 if have gh; then
   ok "gh $(gh --version | head -1 | cut -d' ' -f3)"
 else
-  warn "gh not found -- beat 4 runs from frozen artifacts"
+  warn_live "gh not found -- beat 4 runs from frozen artifacts"
 fi
 
 if have gh && gh auth status >/dev/null 2>&1; then
   ok "gh authenticated as $(gh api user --jq .login 2>/dev/null || echo '?')"
 else
-  warn "gh not authenticated -- beat 4 runs from frozen artifacts"
+  warn_live "gh not authenticated -- beat 4 runs from frozen artifacts"
 fi
 
 if have gh && gh aw version >/dev/null 2>&1; then
   ok "gh aw $(gh aw version 2>&1 | grep -oE 'v[0-9.]+' | head -1)"
 else
-  warn "gh aw extension missing -- 'gh extension install github/gh-aw'"
+  warn_live "gh aw extension missing -- 'gh extension install github/gh-aw'"
 fi
 
 if curl -s --max-time 6 https://api.github.com >/dev/null 2>&1; then
   ok "github.com reachable"
 else
-  warn "github.com unreachable -- beat 4 runs from frozen artifacts"
+  warn_live "github.com unreachable -- beat 4 runs from frozen artifacts"
 fi
 
 echo
@@ -156,7 +163,20 @@ done
 if [ -z "$missing_art" ]; then
   ok "frozen fallback artifacts present (beats 4 and 4b)"
 else
-  warn "missing frozen artifacts:$missing_art"
+  warn_live "missing frozen artifacts:$missing_art"
+fi
+
+# Clutter check. Not fatal, but finding six near-identical pull requests while
+# you are already on stage is a bad time to find out.
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  agent_prs=$(gh pr list --state open --limit 100 --json headRefName \
+                --jq '[.[] | select(.headRefName | startswith("plan/") or startswith("port/"))] | length' \
+              2>/dev/null || echo 0)
+  if [ "${agent_prs:-0}" -le 2 ]; then
+    ok "agent pull requests tidy (${agent_prs:-0} open)"
+  else
+    warn "${agent_prs} agent PRs open -- run 'make prclean' so you are not picking from a list on stage"
+  fi
 fi
 
 if git ls-files --error-unmatch docs/plans/.gitkeep >/dev/null 2>&1; then
@@ -181,8 +201,14 @@ if [[ $FAIL -gt 0 ]]; then
   exit 1
 fi
 
-if [[ $WARN -gt 0 ]]; then
+if [[ $LIVE_RISK -gt 0 ]]; then
   echo "READY -- beats 1-3 will run. Beat 4 may fall back to frozen artifacts."
+  exit 0
+fi
+
+if [[ $WARN -gt 0 ]]; then
+  echo "READY. Every beat can run live."
+  echo "The $WARN warning(s) above are housekeeping, not a threat to the demo."
   exit 0
 fi
 
