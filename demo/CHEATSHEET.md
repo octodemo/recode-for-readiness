@@ -103,6 +103,20 @@ All real captured output, not mockups. Never debug live.
    spacecraft doesn't. And you did **not** fix it.
 4. **Beat 5** — never cut it. It's what makes the other four credible.
 
+## Routine names (expand on first use)
+
+Six characters was the FORTRAN 77 limit — that's why they look like this.
+
+| `ORBPRP` | **orbit propagate** — where it was over the Earth. Carries the defect. |
+|---|---|
+| `TIMCNV` | **time convert** — GPS seconds to UTC. Hand-edited leap second. |
+| `ENGCNV` | **engineering convert** — 23000 → 28.076 volts |
+| `TLMDEC` | **telemetry decom** — unpack the frame into channels |
+| `LIMCHK` | **limit check** — screen against red lines |
+| `CRCCHK` | **CRC check** · `RDFRM` read frame · `HEXVAL` hex value |
+
+Only `ORBPRP` and `TIMCNV` need to be cold. Full table in the runbook.
+
 ## If you're long
 
 - Cut `make defect` (−90s). Cut something else first if you can.

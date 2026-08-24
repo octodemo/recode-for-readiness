@@ -258,9 +258,15 @@ cd ..
 ```
 
 > And the question your engineers actually ask: if I touch this, what else do I
-> have to worry about? That's this. Every line of that answer comes with a file
-> and a line number, so I can go open it and check it. Nothing here is a guess I
-> have to take on faith.
+> have to worry about? That's this.
+>
+> That routine there is `ORBPRP` — orbit propagate. Six-character names, by the
+> way, because that was the limit in FORTRAN 77. It's the piece that works out
+> where the spacecraft was over the Earth. Remember it, because it comes back
+> twice.
+>
+> And every line of that answer comes with a file and a line number, so I can go
+> open it and check it. Nothing here is a guess I have to take on faith.
 >
 > And here's why I'm spending real time on a map, in an AI talk.
 >
@@ -425,7 +431,8 @@ the wrong PR in front of the room is the sort of thing people notice.
 That second command is worth typing on purpose — it shows the agent touched
 exactly one path, and it is under `docs/plans/`.
 
-> So this has been running since before I said hello. It read the graph we
+> So this has been running since before I said hello. I pointed it at `ORBPRP`
+> — orbit propagate, same one we mapped a few minutes ago. It read the graph we
 > built in Beat 2, it read the deck, it read the tests, and it opened this.
 
 Open the PR in the browser. Walk the plan: current behavior with line citations,
@@ -545,6 +552,43 @@ First two gets you to 16:40. First three, 15:25.
   gap." Saying it out loud is what buys you the rest of the claim in this room.
 - **The "not a GitHub product" line on Graphify.** Cheap, and it inoculates the
   obvious cynical read.
+
+## Routine names — what they actually stand for
+
+FORTRAN 77 capped identifiers at six characters, so everything is vowel-dropped
+shorthand. Nobody in a mixed room can decode these on sight, and you will say at
+least two of them out loud. **Expand a name the first time you say it**, then use
+the short form freely.
+
+| Name | Says | Does | Where |
+|---|---|---|---|
+| `RDFRM` | "read frame" | Reads one hex telemetry record off stdin | `geosat.f` |
+| `TLMDEC` | "telemetry decom" | Unpacks the frame into channels. *Decom* = decommutate, the standard term for splitting a multiplexed stream back into signals | `geosat.f` |
+| `CRCCHK` | "CRC check" | CCITT CRC-16 over the frame, catches corrupted downlink | `crc.rs` |
+| `HEXVAL` | "hex value" | One hex character to an integer | `fortran.rs` |
+| `ENGCNV` | "engineering convert" | Raw counts to engineering units — 23000 to 28.076 volts. The Beat 0 example | `calibration.rs` |
+| `LIMCHK` | "limit check" | Screens each channel against its red lines, raises the alarm flags | `calibration.rs` |
+| `ORBPRP` | "orbit propagate" | Works out where the spacecraft was over the Earth. **Carries the known defect** | `orbit.rs` |
+| `TIMCNV` | "time convert" | GPS seconds to UTC calendar time, including the hand-maintained leap-second constant | `timebase.rs` |
+| `REPORT` | "report" | Formats the pass summary. Fixed column positions the archive loader parses | `report.rs` |
+
+Two worth knowing cold, because they carry the demo:
+
+- **`ORBPRP` — orbit propagate.** Beat 2 asks the graph about it, Beat 4 plans
+  it, Beat 3's `make defect` is its defect. Its own header says it ignores J2,
+  drag and all maneuver history, and tells you not to use it for pointing or
+  conjunction. It is a quick-look estimate that outlived its caveat.
+- **`TIMCNV` — time convert.** Beat 4b implements it. The leap-second offset is
+  a hand-edited constant, last updated 2016-12-31, and the header says it "must
+  be hand edited when IERS announces a new leap second." That is a maintenance
+  landmine sitting in a `DATA` statement, and it is real — this is how it was
+  actually done.
+
+**If someone asks why the names are like that:** six characters was the FORTRAN
+77 identifier limit. That's the whole reason. It's a good throwaway — it lands
+the age of the code better than any adjective.
+
+---
 
 ## Known failure modes
 

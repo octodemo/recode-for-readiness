@@ -31,6 +31,9 @@ tools:
     - "sed *"
     - "diff *"
     - "./legacy/build/geosat"
+steps:
+  - name: Unshallow the checkout so safe-outputs can compute a merge base
+    run: git fetch --unshallow origin || git fetch --depth=2147483647 origin || true
 safe-outputs:
   create-pull-request:
     title-prefix: "[port] "
