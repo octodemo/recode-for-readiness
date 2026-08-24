@@ -2,6 +2,9 @@
 
 Full script: `demo/DEMO-RUNBOOK.md`. This is the glance-down version.
 
+The arc, if you lose the thread: **it still runs → we can understand it → we
+can prove parity → an agent can help → the proof is real.**
+
 ```
 cd ~/Development/recode-for-readiness
 make                    # this menu, any time you forget
@@ -60,6 +63,10 @@ gh pr view "$PR" --json files --jq '.files[].path'
 ```
 
 Derive the PR number. Do not hardcode `1` — that's the frozen reference run.
+
+Two proven runs already in the repo (`#1` ORBPRP, `#2` TIMCNV), both draft,
+both fenced to `docs/plans/`. Worth saying out loud: it ran twice, on two
+routines, and landed in the same place both times.
 
 ---
 

@@ -51,6 +51,54 @@ make rehearse    # run every offline beat end to end
 `make rehearse` exiting 0 is the guarantee that the offline portion of the
 demo is reproducible.
 
+## The demo in five steps
+
+A "beat" is one segment of the story. Each is one `make` target. The arc:
+*it still runs → we can understand it → we can prove parity → an agent can
+help → the proof is real.*
+
+| Step | Run | Room sees | Point |
+|---|---|---|---|
+| 0 | `make preflight`, `make rehearse` | nothing, offstage | it works today |
+| 0.5 | `gh workflow run modernization-plan.lock.yml -f routine=ORBPRP` | nothing | the agent needs ~8m30s of head start |
+| 1 | `make beat1` | the 1987 deck compiles and runs | the legacy system is real, not a slide |
+| 2 | `make beat2`, then graphify queries from `legacy/` | call graph, no model involved | comprehension without shipping code to a vendor |
+| 3 | `make beat3`, then `make defect` | byte-parity port; clock advances, position frozen | tests lock in behaviour, defects included |
+| 4 | `gh pr list`, view the newest PR | agent-authored draft plan | the agent works in CI, inside a fence |
+| 5 | `make beat5` | six mutants, six caught | the tests can actually fail |
+
+Verbatim narration is in `demo/DEMO-RUNBOOK.md`. The glance-down version is
+`make card`.
+
+## How the agentic workflows work
+
+Each workflow is a markdown file: YAML frontmatter is the contract, the prose
+below it is the prompt. `gh aw compile` turns it into an ordinary Actions
+workflow (`.lock.yml`) that runs Copilot as the engine. Both are committed —
+read the `.md`, run the `.lock.yml`.
+
+Three independent fences constrain what an agent can do:
+
+1. **`permissions:`** — every workflow here is `contents: read`. The agent's
+   token cannot push a commit. That is a capability, not an instruction.
+2. **`tools:`** — an allowlist. `bash` is limited to named commands, and the
+   `github` toolsets are narrowed to only what the job needs.
+3. **`safe-outputs:`** — the only channel to the outside world. The agent
+   emits a structured request; a separate trusted job with real permissions
+   carries it out, subject to the constraints declared here. `allowed-files`
+   is enforced by that handler, not by the prompt.
+
+| Workflow | Trigger | Can only produce |
+|---|---|---|
+| `legacy-comprehension.md` | issue opened or labeled | one comment |
+| `characterization-guard.md` | PR touching `modern/**` or `legacy/**` | one comment |
+| `modernization-plan.md` | manual, `-f routine=ORBPRP` | one draft PR, files fenced to `docs/plans/**`, labeled `needs-human-review` |
+
+The point is not that the agent should be trusted. It is that the plan arrives
+as a draft pull request touching one markdown file, cites `geosat.f` by line,
+and a human merges it. The agent proposes; the harness constrains; review
+still happens.
+
 ## Layout
 
 ```
