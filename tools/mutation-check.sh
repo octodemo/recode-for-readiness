@@ -16,6 +16,18 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
 
+# Mutations are same-length sed substitutions, so a mutated source can have the
+# same size as the original and be reverted within the same filesystem-mtime
+# tick. CPython's bytecode cache validates on (mtime, size) and will happily go
+# on serving the MUTATED module afterwards, silently poisoning every later run.
+# Never write bytecode here, and purge anything already cached.
+export PYTHONDONTWRITEBYTECODE=1
+purge_pycache() {
+  find "$REPO" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+}
+purge_pycache
+trap purge_pycache EXIT
+
 # Mutations are applied to the sources and reverted with `git checkout --`,
 # so those paths -- and only those -- have to be clean. The graph output under
 # legacy/graphify-out/ carries a rebuild timestamp and is deliberately excluded;
@@ -42,6 +54,7 @@ run_mutation() {
   else
     printf 'SKIP (pattern did not match)\n'
     git checkout -- "$file"
+    purge_pycache
     FAILED=1
     return
   fi
@@ -54,6 +67,7 @@ run_mutation() {
   fi
 
   git checkout -- "$file"
+  purge_pycache
 }
 
 echo "Mutation check -- each change below must be detected by the suite."

@@ -10,12 +10,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.."
 
+export PYTHONDONTWRITEBYTECODE=1
+find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+
 STEP=0
 FAILED=()
 
 beat() {
   STEP=$((STEP + 1))
-  printf '\n\033[1m[%d/6] %s\033[0m\n' "$STEP" "$1"
+  printf '\n\033[1m[%d/7] %s\033[0m\n' "$STEP" "$1"
 }
 
 check() {
@@ -47,11 +50,21 @@ check "explain"    bash -c 'cd legacy && graphify explain "ORBPRP" 2>&1 | grep -
 check "path"       bash -c 'cd legacy && graphify path "geosat" "crcchk" 2>&1 | grep -qi crcchk'
 
 beat "Modern port is byte-for-byte identical to the legacy binary"
+# Deliberately unpiped: `... | tail` reports tail's exit status and would mask
+# a failing suite entirely.
 check "characterization + unit suite" \
-  bash -c 'cd modern && python3 -m unittest discover -s tests -t . 2>&1 | tail -3'
+  bash -c 'cd modern && python3 -m unittest discover -s tests -t .'
 
 beat "The suite can actually fail (mutation check)"
 check "tools/mutation-check.sh" ./tools/mutation-check.sh
+
+# Regression guard. The mutation check edits and reverts modules in place; a
+# same-size revert inside one mtime tick once left a stale .pyc that made the
+# suite pass against MUTATED code. Re-running parity here is what catches that
+# class of failure, so this step must stay last.
+beat "Parity still holds after the mutation check"
+check "post-mutation parity" \
+  bash -c 'cd modern && python3 -m unittest discover -s tests -t .'
 
 beat "Agentic workflows compile clean"
 check "gh aw compile" bash -c 'gh aw compile 2>&1 | grep -q "0 warnings"'

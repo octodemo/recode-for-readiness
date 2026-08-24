@@ -4,6 +4,10 @@
 # Nothing in this file requires the network except `push` and `beat4`.
 
 SHELL := /usr/bin/env bash
+
+# Never write bytecode. A stale .pyc left by a reverted mutation is invisible
+# and will make the parity suite lie. See tools/mutation-check.sh.
+export PYTHONDONTWRITEBYTECODE := 1
 GRAPH := legacy/graphify-out/graph.json
 
 .PHONY: help preflight rehearse legacy graph offline-proof parity mutants \
