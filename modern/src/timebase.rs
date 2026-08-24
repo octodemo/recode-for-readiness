@@ -16,7 +16,7 @@
 pub const GPS_EPOCH_YEAR: i64 = 1980;
 pub const LEAP_SECONDS: i64 = 18;
 
-const MONTH_DAYS: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const MDAYS: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UtcTime {
@@ -29,66 +29,84 @@ pub struct UtcTime {
     pub day_of_year: i64,
 }
 
-fn is_leap(year: i64) -> bool {
+/// Leap-year test as written at `geosat.f:481-482`: divisible by 4 and not by
+/// 100, unless also divisible by 400. Written as two separate `IF`s to match
+/// the FORTRAN control flow rather than collapsing into one boolean
+/// expression.
+fn diny(year: i64) -> i64 {
+    let mut diny = 365;
+    if year % 4 == 0 && year % 100 != 0 {
+        diny = 366;
+    }
     if year % 400 == 0 {
-        return true;
+        diny = 366;
     }
-    if year % 100 == 0 {
-        return false;
-    }
-    year % 4 == 0
+    diny
 }
 
 /// Convert GPS seconds of epoch to UTC calendar fields.
+///
+/// Port of `TIMCNV` in `legacy/src/geosat.f:440-509`.
 pub fn to_utc(gps_seconds: i64) -> UtcTime {
-    let total = gps_seconds - LEAP_SECONDS;
+    // BACK OUT LEAP SECONDS TO REACH UTC (geosat.f:462).
+    let totsec = gps_seconds - LEAP_SECONDS;
 
-    // Floor division, matching Python's `divmod`. The legacy deck only ever
-    // sees post-epoch timestamps, but flooring keeps the two ports identical
-    // rather than identical-for-the-inputs-we-happened-to-test.
-    let mut days = total.div_euclid(86400);
-    let remainder = total.rem_euclid(86400);
-
-    let hour = remainder.div_euclid(3600);
-    let rem = remainder.rem_euclid(3600);
-    let minute = rem.div_euclid(60);
-    let second = rem.rem_euclid(60);
-
-    // Walk forward from the GPS epoch, 1980-01-06.
-    let mut year = GPS_EPOCH_YEAR;
-    days += 5;
-
-    loop {
-        let length = if is_leap(year) { 366 } else { 365 };
-        if days < length {
-            break;
-        }
-        days -= length;
-        year += 1;
+    // FORTRAN integer division truncates toward zero; NDAYS/REM are then
+    // corrected below to land on the floor-divided result, exactly as the
+    // legacy deck does at geosat.f:464-469.
+    let mut ndays = totsec / 86400;
+    let mut rem = totsec - ndays * 86400;
+    if rem < 0 {
+        rem += 86400;
+        ndays -= 1;
     }
 
-    let day_of_year = days + 1;
+    let utchr = rem / 3600;
+    let utcmin = (rem - utchr * 3600) / 60;
+    let utcsec = rem - utchr * 3600 - utcmin * 60;
 
-    let mut month = 1i64;
+    // WALK FORWARD FROM THE GPS EPOCH, 1980 JAN 06 (geosat.f:475-486).
+    let mut yr = GPS_EPOCH_YEAR;
+    ndays += 5;
+
     loop {
-        let mut length = MONTH_DAYS[(month - 1) as usize];
-        if month == 2 && is_leap(year) {
-            length = 29;
-        }
-        if days < length {
+        let length = diny(yr);
+        if ndays < length {
             break;
         }
-        days -= length;
-        month += 1;
+        ndays -= length;
+        yr += 1;
+    }
+
+    let utcyr = yr;
+    let utcdoy = ndays + 1;
+
+    // Walk the day count through the months (geosat.f:492-502).
+    let mut mo = 1i64;
+    loop {
+        let mut dim = MDAYS[(mo - 1) as usize];
+        if mo == 2 {
+            if yr % 4 == 0 && yr % 100 != 0 {
+                dim = 29;
+            }
+            if yr % 400 == 0 {
+                dim = 29;
+            }
+        }
+        if ndays < dim {
+            break;
+        }
+        ndays -= dim;
+        mo += 1;
     }
 
     UtcTime {
-        year,
-        month,
-        day: days + 1,
-        hour,
-        minute,
-        second,
-        day_of_year,
+        year: utcyr,
+        month: mo,
+        day: ndays + 1,
+        hour: utchr,
+        minute: utcmin,
+        second: utcsec,
+        day_of_year: utcdoy,
     }
 }
