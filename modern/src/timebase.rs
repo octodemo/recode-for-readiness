@@ -1,12 +1,13 @@
 //! GPS-to-UTC time conversion.
 //!
-//! Port of `TIMCNV` in `legacy/src/geosat.f`.
+//! Port of `TIMCNV` in `legacy/src/geosat.f` (lines 440-509).
 //!
-//! The GPS epoch is 1980-01-06 00:00:00 UTC. The leap-second offset is a
-//! hand-maintained constant in the legacy source, last updated 2016-12-31.
-//! It is reproduced here as a constant rather than sourced from a leap-second
-//! table on purpose: changing it would change the output, and the point of
-//! this port is to not change the output.
+//! `TIMCNV` converts GPS seconds of epoch into UTC calendar fields. The GPS
+//! epoch is 1980 JAN 06 00:00:00 UTC (`geosat.f:431`). The leap second offset
+//! is a hand maintained constant (`geosat.f:447-448`) that must be updated by
+//! hand whenever IERS announces a new leap second; it is reproduced here as a
+//! constant for the same reason -- the point of the port is to not change the
+//! output.
 //!
 //! Recorded for the modernization backlog, not fixed here: `LEAP_SECONDS` is
 //! stale for any epoch after 2016-12-31. Replacing it with a maintained table
@@ -29,66 +30,67 @@ pub struct UtcTime {
     pub day_of_year: i64,
 }
 
+/// Matches the leap-year test at `geosat.f:481-482` / `geosat.f:496-497`:
+/// divisible by 4 and not by 100, OR divisible by 400.
 fn is_leap(year: i64) -> bool {
-    if year % 400 == 0 {
-        return true;
-    }
-    if year % 100 == 0 {
-        return false;
-    }
-    year % 4 == 0
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
-/// Convert GPS seconds of epoch to UTC calendar fields.
+/// Convert GPS seconds of epoch to UTC calendar fields (`TIMCNV`,
+/// `geosat.f:440-509`).
 pub fn to_utc(gps_seconds: i64) -> UtcTime {
-    let total = gps_seconds - LEAP_SECONDS;
+    // BACK OUT LEAP SECONDS TO REACH UTC (geosat.f:462).
+    let totsec = gps_seconds - LEAP_SECONDS;
 
-    // Floor division, matching Python's `divmod`. The legacy deck only ever
-    // sees post-epoch timestamps, but flooring keeps the two ports identical
-    // rather than identical-for-the-inputs-we-happened-to-test.
-    let mut days = total.div_euclid(86400);
-    let remainder = total.rem_euclid(86400);
-
-    let hour = remainder.div_euclid(3600);
-    let rem = remainder.rem_euclid(3600);
-    let minute = rem.div_euclid(60);
-    let second = rem.rem_euclid(60);
-
-    // Walk forward from the GPS epoch, 1980-01-06.
-    let mut year = GPS_EPOCH_YEAR;
-    days += 5;
-
-    loop {
-        let length = if is_leap(year) { 366 } else { 365 };
-        if days < length {
-            break;
-        }
-        days -= length;
-        year += 1;
+    // FORTRAN integer division truncates toward zero (geosat.f:464-469).
+    let mut ndays = totsec / 86400;
+    let mut rem = totsec - (ndays * 86400);
+    if rem < 0 {
+        rem += 86400;
+        ndays -= 1;
     }
 
-    let day_of_year = days + 1;
+    let utchr = rem / 3600;
+    let utcmin = (rem - utchr * 3600) / 60;
+    let utcsec = rem - utchr * 3600 - utcmin * 60;
 
-    let mut month = 1i64;
+    // WALK FORWARD FROM THE GPS EPOCH, 1980 JAN 06 (geosat.f:476-486).
+    let mut yr = GPS_EPOCH_YEAR;
+    ndays += 5;
+
     loop {
-        let mut length = MONTH_DAYS[(month - 1) as usize];
-        if month == 2 && is_leap(year) {
-            length = 29;
-        }
-        if days < length {
+        let diny = if is_leap(yr) { 366 } else { 365 };
+        if ndays < diny {
             break;
         }
-        days -= length;
-        month += 1;
+        ndays -= diny;
+        yr += 1;
+    }
+
+    let utcyr = yr;
+    let utcdoy = ndays + 1;
+
+    // MONTH WALK (geosat.f:492-502).
+    let mut mo = 1i64;
+    loop {
+        let mut dim = MONTH_DAYS[(mo - 1) as usize];
+        if mo == 2 && is_leap(yr) {
+            dim = 29;
+        }
+        if ndays < dim {
+            break;
+        }
+        ndays -= dim;
+        mo += 1;
     }
 
     UtcTime {
-        year,
-        month,
-        day: days + 1,
-        hour,
-        minute,
-        second,
-        day_of_year,
+        year: utcyr,
+        month: mo,
+        day: ndays + 1,
+        hour: utchr,
+        minute: utcmin,
+        second: utcsec,
+        day_of_year: utcdoy,
     }
 }
