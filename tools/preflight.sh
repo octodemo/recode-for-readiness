@@ -113,10 +113,10 @@ else
   warn "no frozen artifacts -- beat 4 has no fallback"
 fi
 
-if [[ -z "$(git status --porcelain)" ]]; then
-  ok "working tree clean (mutation check requires this)"
+if [[ -z "$(git status --porcelain -- legacy/src modern/geosat_modern modern/tests)" ]]; then
+  ok "mutation targets clean ('make mutants' can run)"
 else
-  warn "working tree dirty -- 'make mutants' will refuse to run"
+  warn "mutation targets dirty -- 'make mutants' will refuse to run"
 fi
 
 echo

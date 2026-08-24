@@ -16,8 +16,14 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
 
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "ERROR: working tree is dirty. Commit or stash before mutation testing." >&2
+# Mutations are applied to the sources and reverted with `git checkout --`,
+# so those paths -- and only those -- have to be clean. The graph output under
+# legacy/graphify-out/ carries a rebuild timestamp and is deliberately excluded;
+# otherwise simply having run `make graph` would block the check on stage.
+DIRTY="$(git status --porcelain -- legacy/src modern/geosat_modern modern/tests)"
+if [[ -n "$DIRTY" ]]; then
+  echo "ERROR: mutation targets are dirty. Commit or stash before mutation testing." >&2
+  echo "$DIRTY" >&2
   exit 2
 fi
 

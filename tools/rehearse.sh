@@ -40,20 +40,18 @@ beat "Knowledge graph builds with no network and no model"
 check "tools/offline-proof.sh" ./tools/offline-proof.sh
 
 beat "Graph answers the questions the demo asks it"
-check "god-nodes"  bash -c 'graphify god-nodes --top 5 2>&1 | grep -qi geosat'
-check "explain"    bash -c 'graphify explain "ORBPRP" 2>&1 | grep -q "geosat.f"'
-check "path"       bash -c 'graphify path "geosat" "crcchk" 2>&1 | grep -qi crcchk'
+# The query commands resolve graphify-out relative to the working directory,
+# so every one of them has to be issued from legacy/.
+check "god-nodes"  bash -c 'cd legacy && graphify god-nodes --top 5 2>&1 | grep -qi geosat'
+check "explain"    bash -c 'cd legacy && graphify explain "ORBPRP" 2>&1 | grep -q "geosat.f"'
+check "path"       bash -c 'cd legacy && graphify path "geosat" "crcchk" 2>&1 | grep -qi crcchk'
 
 beat "Modern port is byte-for-byte identical to the legacy binary"
 check "characterization + unit suite" \
   bash -c 'cd modern && python3 -m unittest discover -s tests -t . 2>&1 | tail -3'
 
 beat "The suite can actually fail (mutation check)"
-if [[ -n "$(git status --porcelain)" ]]; then
-  printf '      \033[33mskipped\033[0m  working tree dirty; commit or stash first\n'
-else
-  check "tools/mutation-check.sh" ./tools/mutation-check.sh
-fi
+check "tools/mutation-check.sh" ./tools/mutation-check.sh
 
 beat "Agentic workflows compile clean"
 check "gh aw compile" bash -c 'gh aw compile 2>&1 | grep -q "0 warnings"'

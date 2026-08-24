@@ -80,10 +80,10 @@ beat2:
 	@./tools/offline-proof.sh
 	@echo
 	@echo "== the de facto architecture =="
-	@graphify god-nodes --top 5
+	@cd legacy && graphify god-nodes --top 5
 	@echo
 	@echo "== what does ORBPRP do, and who depends on it? =="
-	@graphify explain "ORBPRP"
+	@cd legacy && graphify explain "ORBPRP"
 
 # ~5 min. Pin the behaviour, port it, prove it did not move.
 beat3:
