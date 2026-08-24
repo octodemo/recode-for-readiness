@@ -42,9 +42,10 @@ constrained by `safe-outputs`, and the one that can write is fenced to
 ## Quick start
 
 ```bash
+make             # list the demo targets
+make card        # one-page podium cheat sheet
 make preflight   # check every dependency and name what is missing
 make rehearse    # run every offline beat end to end
-make             # list the demo targets
 ```
 
 `make rehearse` exiting 0 is the guarantee that the offline portion of the
@@ -70,7 +71,8 @@ tools/
   gen_frames.py         deterministic frame generator
 .github/workflows/      three gh-aw agentic workflows
 demo/
-  DEMO-RUNBOOK.md       the stage script
+  DEMO-RUNBOOK.md       the stage script, verbatim
+  CHEATSHEET.md         one page for the podium (`make card`)
   artifacts/            frozen outputs, the fallback for the live beat
 ```
 

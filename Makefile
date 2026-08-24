@@ -18,6 +18,7 @@ help:
 	@echo "  Recode for Readiness -- GEOSAT telemetry processor"
 	@echo ""
 	@echo "  Before the room:"
+	@echo "    make card           print the one-page podium cheat sheet"
 	@echo "    make preflight      check every dependency, name what is missing"
 	@echo "    make rehearse       run every offline beat end to end"
 	@echo "    make reset          return the repo to its stage-start state"
@@ -37,6 +38,9 @@ help:
 	@echo "    make mutants        mutation check (needs a clean tree)"
 	@echo "    make workflows      compile the agentic workflows"
 	@echo ""
+
+card:
+	@cat demo/CHEATSHEET.md
 
 preflight:
 	@./tools/preflight.sh

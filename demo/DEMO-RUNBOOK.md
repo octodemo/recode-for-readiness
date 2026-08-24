@@ -7,6 +7,9 @@
 
 ---
 
+**Podium reference:** `demo/CHEATSHEET.md`, or `make card`. Read this file end
+to end before the room; use the card *in* the room.
+
 ## How to read this
 
 Everything in a `> quote block` is what you say. Everything in a fenced block is
