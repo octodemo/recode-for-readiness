@@ -37,8 +37,9 @@ Agent takes ~8m30s. Beat 4 is ~16 min in. Do not skip this.
 
 | # | Beat | Command | Min |
 |---|---|---|---|
+| 0 | What it does | *no terminal — just talk* | 1 |
 | 1 | Deck still runs | `make beat1` | 2 |
-| 2 | In-boundary comprehension | `make beat2` → then queries below | 4 |
+| 2 | Map it, in-boundary | `make beat2` → then queries below | 3 |
 | 3 | Characterize + port to Rust | `make beat3` → `make defect` | 5 |
 | 4 | Agent in CI | *right terminal*, see below | 5 |
 | 5 | Tests can fail | `make beat5` | 2 |
@@ -84,12 +85,19 @@ All real captured output, not mockups. Never debug live.
 
 ---
 
-## Four things to internalize, not read
+## Five things to internalize, not read
 
-1. **Beat 1** — say it's synthetic up front. Don't let them ask.
-2. **Beat 2** — name graphify's optional Gemini layer *before* they see the
-   `Tip: set GEMINI_API_KEY` line on screen. Proxy blackhole is not an air-gap;
-   say so. The claim is *parsing is not inference*.
+0. **Beat 0** — 60 seconds, no terminal. "It sends 23000, not 28 volts. This
+   program is what knows the difference." Mixed room; do not skip it.
+1. **Beat 1** — say it's synthetic up front. Don't let them ask. Gloss the word
+   **deck** the first time you use it ("punch-card word for the source program,
+   not a slide deck") — you're standing in front of a slide deck saying it.
+2. **Beat 2** — stay high. Two ideas only: *you get a map cheaply*, and
+   *making it sends your code nowhere*. Say **reading, not asking** out loud;
+   keep "parsing is not inference" in your pocket for the technical follow-up.
+   Name the optional Gemini layer *before* they see `Tip: set GEMINI_API_KEY`
+   on screen. Proxy blackhole is not an air-gap; say so. Do not explain
+   parsers.
 3. **Beat 3** — `make defect` is the best 30 seconds in the demo. Clock moves,
    spacecraft doesn't. And you did **not** fix it.
 4. **Beat 5** — never cut it. It's what makes the other four credible.

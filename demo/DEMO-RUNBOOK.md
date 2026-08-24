@@ -72,6 +72,53 @@ Then walk to the front of the room.
 
 ---
 
+# Beat 0 — What this thing actually does
+
+**~60 seconds. No terminal. Say this before you show anything.**
+
+This exists because the room is mixed. Half the people in front of you have
+never seen telemetry code and will spend the next fifteen minutes quietly lost
+if you skip it. Do not skip it. No slides, no terminal — just say it.
+
+> Yeah, before I show you any code, let me spend a minute on what this program
+> even does, because not everybody in here works on satellites and I don't want
+> anybody lost for the next fifteen minutes.
+>
+> So a satellite in orbit is basically a car where all the gauges got left back
+> at the shop. It's got a battery, a transmitter, wheels spinning to point it —
+> and it has to tell somebody on the ground how all of that is doing. So every
+> few seconds it radios down a little packet of numbers. That's telemetry.
+>
+> And here's the part that matters. It does not send down "the battery is at 28
+> volts." It sends down the number 23000. That's the whole message.
+>
+> So somebody in 1987 sat down with a calibration table and worked out that on
+> *this* spacecraft, 23000 means 28.076 volts. Same for the current, the
+> temperatures, the wheel speed, a dozen other things. Then what counts as too
+> hot for each one. Then the orbit math, so you can say where the spacecraft
+> actually was — its position over the Earth — at any given moment.
+>
+> That's this program. It turns a stream of numbers into a page an operator can
+> actually read and act on.
+>
+> And this is the boring, unsexy stuff. There's no AI anywhere in it. But if
+> it's wrong, the operator either misses something that's really going wrong up
+> there, or goes chasing something that isn't. So it has to be exactly right,
+> and it has to *stay* exactly right after we move it. That's the whole problem
+> for the next fifteen minutes.
+
+**Use the real numbers — 23000 and 28.076 are not made up.** They are the first
+data line of `make beat1`, thirty seconds later:
+`1 BUSV   23000    28.076 VDC       OK`. When it comes up on screen, point at it:
+*"there's the 23000 I just told you about, and there's the 28 volts."* That
+callback is free and it lands.
+
+**If the room is heavily technical**, compress to the middle three sentences —
+"it sends 23000, not 28 volts; the program is what knows the difference" — and
+move on. Do not cut it entirely; the framing pays off in Beat 3.
+
+---
+
 # Beat 1 — The deck still runs, and nobody knows why
 
 **~2 minutes.** Left terminal.
@@ -92,15 +139,32 @@ You get the file header, the line count, and four passing golden vectors.
 > can all go clone it. But it's modeled line for line on the ground software
 > you actually run, and every pathology in it is one we've hit for real.
 >
-> 642 lines of FORTRAN, fixed-form, decodes telemetry coming down off a
-> satellite. It compiles, it runs, and if you look at the header there — the
-> maintainer field literally says vacant. There's no design doc. The ECO
-> numbers in the comments point at memos nobody can find anymore.
+> 642 lines of FORTRAN, fixed-form. And I'll translate one word before I start
+> using it — this is a *deck*. That's the punch-card word for the source
+> program. A deck was a literal stack of cards you carried down to the machine
+> room, and ground-system shops never stopped calling it that. So when I say
+> deck, I mean this file, not a slide deck.
+>
+> And that's the whole thing I just described — the translation, the red lines,
+> the orbit math — all of it, in one file. It compiles, it runs, and if you look
+> at the header there — the maintainer field literally says vacant. There's no
+> design doc. The ECO numbers in the comments point at memos nobody can find
+> anymore.
+
 >
 > And I want to be careful here, because the way we usually talk about this is
 > "legacy code," which kind of implies it's bad. It's not bad. Code like this
 > works, and it has worked every day for decades. The problem isn't quality.
 > The problem is that the understanding left the building and the code stayed.
+
+**Optional aside — only if you have the time or someone asks "why is it all one
+file?"** Costs ~25 seconds. Verified against `legacy/src/geosat.f:11-15`.
+
+> And that's also *why* it's one giant file. The header says it shipped as a
+> single compilation unit because the old VMS build couldn't resolve the overlay
+> segments otherwise. One deck, one compile. Splitting it into modules wasn't a
+> thing you did. So this isn't sloppy — it's what the tooling of the day made
+> you do, and you're still living with it.
 
 Let `make check` land on screen. Four `PASS` lines.
 
@@ -115,63 +179,72 @@ run, let me pull that up"* — `cat demo/artifacts/beat1-legacy-check.txt`.
 
 ---
 
-# Beat 2 — Comprehension, and it never leaves the building
+# Beat 2 — Make a map of it, without sending it anywhere
 
-**~4 minutes.** This is the beat that matters most to this audience.
+**~3 minutes.** The beat that matters most to this audience.
 
-> So step one is understand it. And this is where, for you all, the
-> conversation usually stops — because the natural move is to throw the code at
-> a model, and for a lot of what's in this room, the code doesn't go anywhere.
+**Altitude check:** this room is mixed. Nobody needs to know how the tool works
+internally. Two ideas only — *you can get a map of the system cheaply*, and
+*making the map doesn't send your code anywhere*. Everything below serves those
+two. If you catch yourself explaining parsers, you have lost the room.
+
+> So step one is just understand what you've got. And this is usually where the
+> conversation stops for folks in this room — because the obvious move is to
+> hand the code to an AI and ask it, and for a lot of you, the code doesn't go
+> anywhere. It can't leave the building.
 >
-> So let me not assert that. Let me just show you.
+> So let me not just assert that we solved that. Let me show you.
 
 ```bash
 make beat2
 ```
 
-The script blackholes every proxy variable, strips every model API key, and
-*then* rebuilds the graph. It ends by quoting graphify's own two lines back at
-you — `(no LLM needed)` and the `set GEMINI_API_KEY` tip — pinned at the bottom
-of the output so you can point at them without scrolling. Name that tip before
-anyone in the room does.
+*Operator note (do not narrate):* the script drops every proxy variable, strips
+model credentials from the environment, points egress at a dead port, and *then*
+builds. It pins graphify's own `(no LLM needed)` line and its `set GEMINI_API_KEY`
+tip at the bottom of the output. Name that tip yourself before someone else spots
+it — see the narration below. Full mechanism is in `tools/` if anyone asks after.
 
-> So the call-graph extraction here is pure tree-sitter. It's a parser. It
-> reads the source the same way your compiler does and writes down what calls
-> what. Twelve nodes, nineteen edges, nine resolved call edges.
+> So what came back is a map of the program. Every routine in this thing, and
+> every place one routine reaches for another. About a dozen pieces and the
+> connections between them.
 >
-> And I want to be straight with you about the tool, because you can see it
-> right there on screen — graphify has an *optional* semantic layer that will
-> call out to Gemini if you give it a key. We didn't turn that on. And rather
-> than just tell you that, we stripped every model credential on the box and
-> pointed the proxy at a dead port before building. It built anyway, at zero
-> token cost, because the structural map never needed a model to begin with.
+> And here's the thing I actually want you to take away. We built that map with
+> every AI credential stripped off this box and outbound traffic pointed at a
+> dead end. And I'll be straight with you — that's not the same as pulling the
+> cable out of the wall. It's a software block, not an air gap. But it is
+> demonstrable, it's on your screen, and the tool didn't want the network
+> anyway. No AI spend, and nothing left the box.
 >
-> Now, is blackholing a proxy the same thing as an air-gap? No. If you want the
-> hard version, the tool runs fine with the network physically down — there's a
-> flag in the repo that does exactly that. The architectural point is the one
-> that matters: parsing is not inference. That part runs inside your boundary.
+> Because it never needed the AI to begin with. It *read* your source files and
+> wrote down what it saw. It didn't ask anybody anything. And that distinction —
+> reading versus asking — is the whole ball game for you all, because reading
+> happens inside your boundary.
 >
-> And I'll say the limit out loud too — this does not understand your code. It
-> has no opinion about it. It's a map, not a guide.
+> You can even see the tool offering me an AI upgrade right there on screen.
+> There's a tip telling me to go set a Gemini key. We didn't. Didn't need it for
+> this part.
 >
-> But a map is what you actually need first. It's kind of like — you can drive
-> across the country with a paper map from twenty years ago, and you'll
-> probably get there, and it's going to be miserable. GPS didn't make you a
-> better driver. It just meant you stopped guessing.
+> And the limit, out loud, because it's a real one — this does not understand
+> your code. It has no opinion about it. It's a map, not a guide. But a map is
+> what you need first. GPS never made anybody a better driver. It just meant you
+> stopped guessing about where you were.
 
-Then the graph answers questions. Stay in `legacy/` for all three.
+Then let the map answer questions. **Stay in `legacy/` for all three commands.**
 
-> So now I can ask it things.
+> And once you have the map, you can ask it things.
 
 ```bash
 cd legacy && graphify god-nodes --top 5
 ```
 
-> Top of that list is the main program, which — fine, that one's by design.
-> But look at two and three. `RDFRM` and `TLMDEC` are the real hubs in this
-> thing. Nobody sat down and designed that. It accreted, one change order at a
-> time, over four decades. And that's the honest architecture of this system,
-> and we got it in about a quarter of a second.
+> So: what's actually load-bearing in here? Top of the list is the main program,
+> which, fine, that one's by design. But look at two and three. Those two
+> routines are where everything in this system converges. Nobody designed that.
+> It accreted, one change order at a time, over four decades.
+>
+> And that's the real architecture of this system. Not what the diagram on
+> somebody's wall says. And we got it in about a quarter of a second.
 
 ```bash
 graphify explain "ORBPRP"
@@ -179,22 +252,21 @@ graphify path "geosat" "crcchk"
 cd ..
 ```
 
-> `explain` gives me the neighborhood with a file and a line number on every
-> edge — that's not a model's best guess, that's read straight out of the
-> source, and I can go open line 78 and check it.
+> Second question is the one your engineers actually ask: if I touch this piece,
+> what else do I have to worry about? That's this. And every single line of that
+> answer comes with a file and a line number, so I can go open it and check it
+> myself. Nothing here is a guess I have to take on faith.
 >
-> And `path` is the blast-radius question. If I touch the CRC check, what sits
-> upstream of me. Two hops, main into `TLMDEC` into `CRCCHK`.
->
-> And the reason I'm spending time on this — the expensive part of
-> modernization was never writing the new code. It's that nobody can tell you
-> what the old code promised. This part costs you nothing and it happens inside
-> your boundary.
+> And the reason I'm spending real time on this — the expensive part of
+> modernization was never writing the new code. Everybody can write the new
+> code. The expensive part is that nobody can tell you what the old code
+> promised. This part costs you nothing, and it happens inside your boundary.
 
 **Fallback:** graph queries must run from `legacy/` — the tool resolves
 `graphify-out` relative to the working directory. If you get
 `graph file not found`, you are in the wrong directory. `cd legacy` and repeat.
-If graphify itself is broken: `open legacy/graphify-out/graph.html`.
+If graphify itself is broken: `open legacy/graphify-out/graph.html` and talk
+over the picture — it makes the same point.
 
 ---
 
@@ -402,25 +474,46 @@ Six mutations, six `caught by the suite`.
 
 ## Timing card
 
-| Beat | Content | Target | Cumulative |
-|---|---|---|---|
-| 1 | The deck still runs | 2:00 | 2:00 |
-| 2 | In-boundary comprehension | 4:00 | 6:00 |
-| 3 | Characterize and port | 5:00 | 11:00 |
-| 4 | Agentic loop in CI | 5:00 | 16:00 |
-| 5 | Mutation check and close | 2:00 | 18:00 |
+Targets below are **measured**, not aspirational — spoken word counts at a
+conference cadence of ~155 wpm, plus observed command runtime. Beat 0 and Beat 2
+were both re-baselined after the first pass under-budgeted them.
 
-**If you are running long at Beat 3**, cut `make defect` and just say it. Saves
-90 seconds. It is the best moment in the demo though, so cut something else
-first if you can.
+| Beat | Content | Talk | + Commands | Target | Cumulative |
+|---|---|---|---|---|---|
+| 0 | What the thing does | 1:45 | — | 1:45 | 1:45 |
+| 1 | The deck still runs | 2:15 | 0:30 | 2:45 | 4:30 |
+| 2 | Map it, in-boundary | 3:20 | 0:40 | 4:00 | 8:30 |
+| 3 | Characterize and port | 3:30 | 1:30 | 5:00 | 13:30 |
+| 4 | Agentic loop in CI | 4:00 | 0:30 | 4:30 | 18:00 |
+| 5 | Mutation check and close | 1:15 | 0:45 | 2:00 | 20:00 |
 
-**If you are running long at Beat 4**, skip `cat`-ing the workflow file and go
-straight to the PR. Say the `safe-outputs` line over the PR view instead.
+Plus one **optional** 0:25 aside in Beat 1 ("why is it all one file?") that is
+not counted above. Take it only if you're ahead.
 
-**Never cut Beat 5.** It is the shortest beat and it is the one that makes the
-rest of it credible.
+**That is 20:00 flat, with zero slack and no Q&A.** If your slot is 20 minutes
+*including* questions, you are already over — take the first two cuts below.
+If your slot is a hard 15, take the whole cut list *before* you walk up.
+Deciding on stage is how demos die.
 
----
+### The 15-minute cut (decide beforehand)
+
+| Cut | Saves | Cost |
+|---|---|---|
+| Beat 0 → the three-sentence version at the end of that section | 1:15 | Non-technical half is thinner on Beat 3 |
+| Beat 2 → drop `graphify explain` + `path`, keep `god-nodes` | 1:00 | Lose the blast-radius question |
+| Beat 4 → skip `cat`-ing the workflow, say `safe-outputs` over the PR | 1:00 | Lose the "you can read the whole agent" moment |
+| Beat 1 → skip the show of hands | 0:30 | Lose the room-warming open |
+
+That's 15:30. Take the first three and stop.
+
+### Never cut
+
+- **Beat 5.** Shortest beat, and it is the one that makes the other four
+  credible. If you cut it you are just asserting the tests work.
+- **`make defect` in Beat 3.** The best thirty seconds in the demo. If you are
+  long at Beat 3, cut narration around it, not it.
+- **The air-gap concession in Beat 2.** Saying "it's a software block, not an
+  air gap" out loud is what buys you the rest of the claim in this room.
 
 ## Known failure modes
 
