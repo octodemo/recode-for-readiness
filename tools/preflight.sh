@@ -101,6 +101,18 @@ else
   warn "no graph yet -- 'make graph' will build it in under a second"
 fi
 
+# A quoting mistake in one of these is invisible until the beat runs, and it
+# would surface mid-demo. `bash -n` costs nothing.
+BADSH=""
+for script in tools/*.sh; do
+  bash -n "$script" 2>/dev/null || BADSH="$BADSH $script"
+done
+if [[ -z "$BADSH" ]]; then
+  ok "$(ls tools/*.sh | wc -l | tr -d ' ') harness scripts parse cleanly"
+else
+  bad "syntax error in:$BADSH"
+fi
+
 if compgen -G ".github/workflows/*.lock.yml" >/dev/null; then
   ok "$(ls .github/workflows/*.lock.yml | wc -l | tr -d ' ') agentic workflows compiled"
 else

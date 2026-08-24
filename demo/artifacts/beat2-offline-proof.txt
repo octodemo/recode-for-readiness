@@ -8,9 +8,17 @@ Re-extracting code files in legacy (no LLM needed)...
 Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.
 Tip: set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini for semantic extraction.
 
-Graph built with the network unavailable:
+Graph built with no reachable network and no model credentials:
   12 nodes, 19 edges, 9 resolved call edges
   19 EXTRACTED / 0 INFERRED
-  token cost: 0 input, 0 output -- no model was invoked
+  no model credentials were present, and the build did not need one
 
-PROVED: comprehension ran entirely in-boundary. Nothing left the machine.
+Structural comprehension completed with egress blackholed and every model
+credential stripped. Parsing is not inference; this part stays in-boundary.
+
+Note, in graphify's own words above:
+  "Re-extracting code files ... (no LLM needed)"
+  "Tip: set GEMINI_API_KEY ... to use Gemini for semantic extraction"
+
+That optional semantic layer is the part we did not use. The call graph
+above came out of tree-sitter alone.

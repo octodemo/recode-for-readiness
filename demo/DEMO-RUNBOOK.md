@@ -130,8 +130,10 @@ make beat2
 ```
 
 The script blackholes every proxy variable, strips every model API key, and
-*then* rebuilds the graph. Note the `Tip: set GEMINI_API_KEY...` line graphify
-prints — you are going to name it before anyone else does.
+*then* rebuilds the graph. It ends by quoting graphify's own two lines back at
+you — `(no LLM needed)` and the `set GEMINI_API_KEY` tip — pinned at the bottom
+of the output so you can point at them without scrolling. Name that tip before
+anyone in the room does.
 
 > So the call-graph extraction here is pure tree-sitter. It's a parser. It
 > reads the source the same way your compiler does and writes down what calls

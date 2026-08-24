@@ -124,3 +124,14 @@ PY
 echo
 echo "Structural comprehension completed with egress blackholed and every model"
 echo "credential stripped. Parsing is not inference; this part stays in-boundary."
+echo
+# Graphify prints its own "set GEMINI_API_KEY ... for semantic extraction" hint
+# partway up the output. Somebody in the room will notice it. Pinning it here,
+# at the bottom where the narration happens, turns it from a gotcha into the
+# supporting evidence it actually is.
+echo "Note, in graphify's own words above:"
+echo '  "Re-extracting code files ... (no LLM needed)"'
+echo '  "Tip: set GEMINI_API_KEY ... to use Gemini for semantic extraction"'
+echo
+echo "That optional semantic layer is the part we did not use. The call graph"
+echo "above came out of tree-sitter alone."
