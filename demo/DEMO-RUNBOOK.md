@@ -525,28 +525,41 @@ gh pr view "$PR" --json files --jq '.files[].path'
 
 > And there it is. One file. `modern/src/timebase.rs`. Nothing else.
 
+*Operator note (do not narrate):* the safe-output tool always cuts its branch
+from the default branch, so the PR's **Files changed** tab diffs against `main`,
+where the reference implementation already exists. Show the **file list** and the
+**body** — both are exactly right — and stay out of the diff tab. If someone
+asks to see the before/after, the honest answer is that `main` is already ported
+and the gap is on the demo branch, which is the truth and costs you nothing.
+
 Open the PR. Walk the body: what the routine does, preserved defects, numeric
 decisions.
 
-> And the part I'd point at if you only look at one thing — read the
-> **preserved defects** section.
+> And read the body, because this is where it gets interesting.
 >
-> The leap-second offset in this routine is a hand-edited constant. The header
-> says it has to be updated by hand every time IERS declares a leap second, and
-> it was last touched in 2016. That is a bug with a fuse on it.
+> Look at **numeric decisions**. The old code does its own correction when a
+> remainder comes out negative. Rust has a built-in that does almost the same
+> thing — and it says, in writing, that it deliberately did *not* use the
+> built-in, and reproduced the original correction step by step instead.
 >
-> The agent found it, reproduced it exactly, and then *wrote down that it did
-> that* and said fixing it needs its own change with its own updated vectors.
+> That's a subtle call. "Almost the same" is how you end up off by a day on the
+> one pass a year that matters. I've watched experienced engineers get that
+> wrong.
 >
-> Which is exactly right, and it's the thing people get wrong. If it had
-> helpfully fixed that while porting, the output changes, parity breaks, and I
-> lose the only proof I had that any of the rest of it is faithful. Fix it
-> later, on purpose, with the tests updated deliberately.
+> And look at **what was not done**. It says there was no approved plan on file
+> for this routine, so it worked straight from the FORTRAN. Nobody asked it to
+> confess that. It flagged its own gap.
 >
-> Is it an easy button? Still no. A human reads this before it goes anywhere,
-> and it's a draft on purpose. But it did the boring, careful, expensive part —
-> and it did it inside a fence where the worst case is it wastes my time, not
-> that it quietly breaks a spacecraft's ground segment.
+> One honest note, since it's right there on screen — under preserved defects it
+> says "none identified." I'd have liked it to flag the leap-second constant in
+> this routine, which is hand-edited and hasn't been touched since 2016. It
+> *preserved* it correctly, and it explains why in the code comments, but it
+> didn't call it out as a landmine. That's a real miss, and it's the reason a
+> human reads this before it goes anywhere.
+>
+> Is it an easy button? Still no. But it did the boring, careful, expensive part
+> — and it did it inside a fence where the worst case is that it wastes my time,
+> not that it quietly breaks a spacecraft's ground segment.
 
 **Fallback:** `cat demo/artifacts/implement-pr.md` and
 `demo/artifacts/implement-run.log`. Real captured output.

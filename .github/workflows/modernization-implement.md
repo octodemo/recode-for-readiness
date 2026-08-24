@@ -2,9 +2,9 @@
 emoji: 🔧
 name: Modernization Implement
 description: >-
-  Implements the Rust port of one named routine from the legacy GEOSAT deck,
-  working from an approved plan, and proves it by byte-for-byte equivalence
-  against the 1987 FORTRAN. Opens a draft pull request a human approves.
+  Re-derives the Rust port of one named routine directly from the 1987 FORTRAN
+  and proves it by byte-for-byte equivalence against the compiled legacy
+  binary. Opens a draft pull request a human approves.
 on:
   workflow_dispatch:
     inputs:
@@ -46,7 +46,21 @@ safe-outputs:
 
 # Modernization Implement
 
-Implement the Rust port of `${{ inputs.routine }}`.
+Re-derive the Rust port of `${{ inputs.routine }}` from the legacy FORTRAN.
+
+A port of this routine already exists in `modern/src/`. **Ignore it as a
+source.** Do not copy it, do not lightly edit it. Work from
+`legacy/src/geosat.f` and rewrite the module body from the FORTRAN, as if
+porting it for the first time. Then replace the existing implementation with
+yours.
+
+This is deliberate. The existing port is a human's work, and the question on
+the table is whether the same routine can be derived again, independently, and
+still land byte-for-byte on 1987 output. If your version passes the suite, it
+is a valid port. If it does not, the existing one stands and yours is wrong.
+
+You may read the existing module for its **public signature only** -- the
+function names and types other modules call. Do not change that surface.
 
 ## What you may and may not write
 
@@ -140,8 +154,9 @@ Write it for a reviewer who will not read your diff line by line:
 - Never edit the legacy deck, the golden vectors, the expected output, or the
   tests.
 - A draft pull request is the only output. Approving a port is a human's call.
-- If the routine is already fully implemented and `cargo test` passes with no
-  changes from you, do not invent work. Call `report_incomplete` and say the
-  routine is already ported.
+- Your pull request must actually change the module. Re-deriving it and
+  arriving at something byte-identical to the existing source is possible for a
+  short routine; if that happens, say so in the body rather than inventing a
+  cosmetic change.
 - If the named routine does not exist in the deck, say so and call
   `report_incomplete`.
