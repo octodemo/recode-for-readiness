@@ -1,239 +1,230 @@
-# Frozen fallback: agent-authored modernization plan
+# Modernization Plan: `ORBPRP`
 
-Source: https://github.com/octodemo/recode-for-readiness/pull/1
-Run:    https://github.com/octodemo/recode-for-readiness/actions/runs/32678748126
-Agent job 5m00s; full run including safe-output detection 8m26s.
-
----
-
-@@ -0,0 +1,230 @@
-# Modernization Plan: ORBPRP
+Scope: `SUBROUTINE ORBPRP(GSEC)` in `legacy/src/geosat.f:522-591`, and its
+already-drafted port at `modern/src/orbit.rs`. This routine writes
+`SSLAT`, `SSLON`, `SSALT` into COMMON `/ORBBLK/` (`legacy/src/geosat.inc`),
+which is read only by `REPORT` (`geosat.f:599`) to print the `SSP LAT=...
+LON=... ALT=...` line that the downstream archive loader (ARCLOD) parses
+by fixed column position.
 
 ## 1. Current behaviour
 
-`ORBPRP` (`legacy/src/geosat.f:522-591`) computes a "quick look" subsatellite
-point (SSP) from a frozen, circular-orbit element set. It is called once per
-processed frame from the main driver (`geosat.f:78`), immediately after
-`TIMCNV`, and writes its results into `COMMON /ORBBLK/` (`SSLAT`, `SSLON`,
-`SSALT`, declared in `geosat.inc:52-53`), which `REPORT` (`geosat.f:599`)
-formats into the `SSP LAT=... LON=... ALT=...` line (`geosat.f:635`,
-format 903) consumed by the downstream archive loader by fixed column
-position.
+`ORBPRP` is a "quick look" circular-orbit propagator with a frozen element
+set (`geosat.f:535-543`): altitude 785.0 km, inclination 98.6°, RAAN
+142.35°, epoch GPS second 630720000. No elements are ever reloaded; the
+header comment (`geosat.f:519-520`) says the element loader was never
+ported off the VAX.
 
-Per its own header comment (`geosat.f:511-521`), this is explicitly **not**
-the operational ephemeris: it assumes a circular orbit at nominal altitude,
-ignores J2, drag, and maneuver history, and its element set is frozen at GPS
-epoch 630720000 (`geosat.f:535-543`) because "the element loader was never
-ported off the VAX." The routine is documented as unsuitable for pointing or
-conjunction products (memo GS-89-112).
+Per call, given `GSEC` (the frame's GPS seconds, `geosat.f:527,561`,
+supplied by the caller from `TIMCNV`'s output at `geosat.f:78` in the main
+driver):
 
-Step by step (`geosat.f:556-588`):
+- `A = RE + ELALT` (`geosat.f:556`); `PERIOD` from Kepler's third law with
+  `MU = 398600.4418` (`geosat.f:559`).
+- `DT = REAL(GSEC - ELEPOC)` (`geosat.f:561`) — the integer difference is
+  cast to a 32-bit `REAL`, not carried in double or integer precision.
+- `ARGLAT = AMOD(2*PI*DT/PERIOD, 2*PI)` (`geosat.f:564-565`) — a purely
+  linear argument-of-latitude model; no eccentricity, no J2, no drag.
+- `XLAT = ASIN(SIN(INC)*SIN(ARGLAT)) * 180/PI` (`geosat.f:570`).
+- `LONASC = ELRAAN - (360.985647/86400)*DT` (`geosat.f:574-575`) — a
+  constant sidereal-rotation-rate correction applied to raw `DT`, with no
+  wrap before use.
+- `XLON = LONASC + ATAN2(COS(INC)*SIN(ARGLAT), COS(ARGLAT))*180/PI`, then
+  wrapped to `[-180, 180]` with one `AMOD(., 360)` plus two conditional
+  corrections (`geosat.f:578-584`).
+- Results are stored unconditionally into `SSLAT`, `SSLON`, `SSALT =
+  ELALT` (`geosat.f:586-588`) on every call, regardless of whether the
+  frame that produced `GSEC` was otherwise valid.
 
-- `A = RE + ELALT` — semi-major axis for a circular orbit at 785 km altitude
-  (`geosat.f:556`).
-- `PERIOD = 2*PI*SQRT(A**3/MU)` — Keplerian period, `MU = 398600.4418`
-  (`geosat.f:558-559`).
-- `DT = REAL(GSEC - ELEPOC)` — elapsed time since element epoch, **stored in
-  single-precision `REAL`** (`geosat.f:527, 545, 561`). This is the load-
-  bearing defect (see §2).
-- `ARGLAT = AMOD(2*PI*DT/PERIOD, 2*PI)` — argument of latitude
-  (`geosat.f:564-565`).
-- `XLAT = ASIN(SIN(ELINC) * SIN(ARGLAT)) * 180/PI` — geodetic latitude of the
-  SSP under the circular-orbit assumption (`geosat.f:567-570`).
-- `LONASC = ELRAAN - RATE*DT`, `RATE = 360.985647/86400` — ascending node
-  longitude, rotated for a fixed Earth-spin rate that ignores any leap-second
-  or sidereal/solar distinction (`geosat.f:572-575`).
-- `XLON = LONASC + ATAN2(COS(ELINC)*SIN(ARGLAT), COS(ARGLAT)) * 180/PI` —
-  in-track displacement added to the node (`geosat.f:578-579`).
-- Longitude is wrapped into `[-180, 180]` via one `AMOD` plus two conditional
-  corrections (`geosat.f:582-584`), *not* a single normalized formula — this
-  is a common FORTRAN idiom but is easy to get subtly wrong in a rewrite
-  (e.g. mishandling exactly ±180 or the sign convention of `AMOD` with a
-  negative operand).
-- `SSALT` is always the constant `ELALT = 785.0`, never a computed altitude
-  (`geosat.f:588`) — the routine's own name and the report label imply a
-  propagated altitude, but it is actually just the frozen element restated.
+`ORBPRP` communicates only through COMMON, not through return value or
+`INTENT(OUT)` argument, so any future change to call ordering in the main
+driver (`geosat.f:78`) that ran `REPORT` before `ORBPRP` for a given frame
+would silently print stale coordinates with no error indication.
 
-All arithmetic is single-precision `REAL` throughout (`IMPLICIT NONE` plus
-explicit `REAL` declarations, `geosat.f:523-554`), and all constants
-(`PI`, `RE`, `ELALT`, `ELINC`, `ELRAAN`, `RATE`, `360.0`, `180.0`) are
-single-precision literals or computed at that precision.
+**Bug-shaped things, called out explicitly:**
+
+- **Single-precision `DT` (`geosat.f:561`).** For current-epoch GPS seconds
+  (roughly 1.3–1.4 billion), `GSEC - ELEPOC` is itself on the order of
+  7×10^8, which exceeds the ~7 significant decimal digits binary32
+  carries. The subtraction result loses low-order seconds of resolution,
+  so the propagated point is coarse-quantized in time; frames only a few
+  seconds apart can propagate to bit-identical `SSLAT`/`SSLON`. This is
+  already documented and pinned in `modern/src/orbit.rs`'s "KNOWN DEFECT"
+  block and in `modern/tests/units.rs::single_precision_defect_is_preserved`.
+- **No real ephemeris.** The header explicitly warns this routine must
+  never be used for pointing or conjunction products (`geosat.f:513-517`,
+  memo GS-89-112), yet nothing in the code enforces that; a consumer
+  reading only the archived output has no way to know the SSP is "quick
+  look" data rather than precision ephemeris.
+- **Asymmetric wrap order.** `LONASC` is never wrapped on its own; only
+  the final sum of `LONASC + in_track` is wrapped (`geosat.f:578-584`).
+  This is part of the pinned numeric contract, not incidental style —
+  reordering it changes results near ±180°.
+- **Platform-dependent transcendentals.** Single-precision `SIN`/`COS`/
+  `ASIN`/`ATAN2` mean the legacy binary's libm resolution is part of the
+  archived numeric contract, as `modern/src/precision.rs` documents in
+  detail (byte parity against the compiled deck is an empirical, pinned
+  result, not a language guarantee).
 
 ## 2. Preserved defects
 
-- **Single-precision time overflow (primary defect).** `DT` is a 32-bit
-  `REAL` holding `GSEC - ELEPOC` (`geosat.f:527, 545, 561`). Current GPS
-  seconds are on the order of 7.3e8-1.4e9, which exceeds binary32's ~7
-  significant decimal digits. The low-order bits of elapsed time — i.e. the
-  sub-~100-second resolution — are silently discarded before any trig is
-  applied. Consequence: **frames a few seconds apart propagate to the
-  identical SSP** (confirmed in `modern/tests/test_units.py:130-141`,
-  `OrbitTest.test_single_precision_defect_is_preserved`, and visible directly
-  in the golden expected output, e.g. `legacy/tests/expected/pass01.out`
-  lines 4-52 all read `LAT= 81.112 LON= 32.250` across four consecutive
-  frames before the value steps). **If corrected** (e.g. by widening `DT` to
-  double precision or restructuring the time arithmetic to preserve
-  resolution), every archived SSP value computed from a `GSEC` this large
-  would change — this is a silent, systemic re-baselining of an archived
-  telemetry product, not a bug fix a ground-system maintainer is authorized
-  to make unilaterally. **Pin as a test, do not fix.**
+None of the following should be fixed in this pass. Each becomes a pinned
+characterization/unit test, not a correction.
 
-- **`SSALT` is not propagated.** `SSALT` is always the constant `ELALT`
-  (`geosat.f:588`), regardless of `GSEC`. Any consumer treating the reported
-  altitude as time-varying is being fed a constant. This is arguably a
-  simplification consistent with "circular orbit, frozen elements" rather
-  than a bug, but it must be preserved exactly (constant `785.0`) since the
-  archive format has a dedicated `ALT=` field that downstream tooling may
-  already treat as authoritative.
-
-- **Frozen elements never update.** The element set (`ELALT`, `ELINC`,
-  `ELRAAN`, `ELEPOC`) is a compile-time `PARAMETER` block, not loaded from
-  input (`geosat.f:535-543`). This is explicitly documented as a known gap
-  ("element loader was never ported off the VAX") rather than a defect to
-  silently patch — any element update is an operational decision, not a
-  code-modernization decision.
-
-- **Earth rotation rate ignores UT1/leap-second corrections.** `RATE =
-  360.985647/86400.0` (`geosat.f:574`) is a fixed sidereal-ish rate applied
-  uniformly regardless of the actual UTC epoch, consistent with the
-  "quick look, not for pointing" caveat. Preserve as-is; do not attempt to
-  make it more astronomically correct.
+1. **Single-precision `DT` overflow of resolution** (`geosat.f:561`;
+   already pinned by `modern/tests/units.rs::single_precision_defect_is_preserved`).
+   Correcting it (e.g. computing `DT` in `f64`/`i64`) would change
+   `SSLAT`/`SSLON` for essentially every archived frame at current
+   epochs — a mission-assurance decision, not a refactor.
+2. **Frozen elements, no ephemeris refresh** (`geosat.f:519-520,535-543`).
+   "Fixing" this by loading real elements would change every archived SSP
+   and violate memo GS-89-112's explicit prohibition on this routine
+   being used for pointing — i.e. it is deliberately wrong-but-cheap, and
+   downstream tooling may already assume that.
+3. **Unconditional COMMON overwrite regardless of upstream frame
+   validity** (`geosat.f:586-588`). If a caller reordering, or a
+   partial/garbage `GSEC`, ever caused `ORBPRP` to run on a bad frame,
+   `REPORT` would still print a plausible-looking SSP with no error
+   indication. Preserving this (not adding validation) keeps output
+   byte-identical for the golden vectors; adding validation later is a
+   behaviour change, out of scope here.
+4. **No wrap of `LONASC` before summing with `in_track`**
+   (`geosat.f:574-575,578`) — only the final sum is wrapped. Reordering
+   the wrap changes numeric output near boundary cases and must not
+   happen inside a pure porting step.
 
 ## 3. Coverage gap
 
-The four golden vectors (`legacy/tests/golden/{pass01,pass02,pass03,edge01}.tlm`)
-exercise the following in `legacy/tests/expected/*.out`:
+`legacy/tests/golden/` currently exercises:
+- `pass01/02/03.tlm`: nominal frames, each producing a distinct SSP over
+  the course of a pass, confirming the propagator advances with time.
+- `edge01.tlm`: 5 frames (frame counters 900000–900004 per
+  `legacy/tests/expected/edge01.out`), all of which yield the identical
+  `SSP LAT= 81.112 LON= 32.250 ALT= 785.0`. This is the single-precision
+  DT-quantization defect appearing in the golden set, but only
+  implicitly — nothing in the vector or its expected output states that
+  this repetition is a *required* property rather than coincidence.
 
-- Multiple frames at the same `GSEC`-derived `DT` window producing identical
-  SSP (the single-precision defect, indirectly).
-- SSP transitions between frames as `GSEC` advances further (e.g.
-  `pass01.out` steps from `LAT=81.112/LON=32.250` to `LAT=79.621/LON=12.250`
-  to `LAT=77.275/LON=-1.750`), which exercises the general propagation path
-  and the ordinary (non-wrapping) branch of the longitude correction.
+**Gaps not currently exercised by any golden vector:**
 
-They do **not** exercise:
-
-- **The longitude wrap boundary conditions.** No golden vector's `GSEC`
-  produces a raw `XLON` that lands at or just past ±180° before wrapping
-  (`geosat.f:582-584`), nor a case exercising the `AMOD` behavior for a
-  *negative* `XLON` operand (FORTRAN `AMOD` result takes the sign of the
-  first argument, so `AMOD` of a large negative longitude behaves
-  differently from Python's `%`/`math.fmod` unless matched carefully — the
-  modern port already uses `math.fmod` correctly per `orbit.py:101,124`, but
-  no golden vector proves it). **New vector needed:** a frame whose `GSEC`
-  yields `LONASC + in_track` computed to fall just outside `[-180, 180]`
-  (e.g. arranged so `XLON` ≈ 180.5° or ≈ -180.5° before wrap), to pin the
-  wrap-correction branch and its sign handling end-to-end through `REPORT`'s
-  `F9.3` field.
-- **The exact single-precision rounding of `DT` at a specific, documented
-  `GSEC` value across the discretization boundary.** No golden vector is
-  constructed to demonstrate *which* GSEC deltas collapse to the same binary32
-  value versus which don't — the existing vectors show the effect
-  incidentally but not at a chosen, reasoned boundary. **New vector needed:**
-  two frames whose `GSEC` values are chosen so that one pair collapses to the
-  same `DT` in binary32 and an adjacent pair (one second further) does not,
-  to make the defect boundary itself a pinned, intentional characterization
-  rather than an incidental one.
-- **`SSALT` under any circumstance other than the constant.** No test
-  distinguishes "always 785.0" from "computed but coincidentally equal to
-  785.0 for these vectors." **New vector needed:** none strictly required
-  functionally (the value never varies by construction), but a unit-level
-  assertion (in the modern suite) that `SSALT`/`altitude_km` is exactly the
-  `ELALT` parameter and independent of `GSEC` would close this gap without
-  needing a new legacy golden frame.
-- **`ARGLAT` wrap via `AMOD` for `U` values spanning multiple full
-  revolutions** (i.e. `DT` large enough that `U` is several multiples of
-  `2*PI`). None of the golden `GSEC` values are far enough past
-  `ELEPOC = 630720000` relative to the ~100-minute period to be checked at a
-  chosen large multiple; the existing vectors happen to land within the
-  first few periods only by accident of using near-epoch GPS times.
+- **No vector pins the exact DT-quantization boundary as a stated
+  property.** No `.tlm`/`.out` pair exists at a *current* epoch with two
+  frames 4 seconds apart that are asserted to collapse to the same SSP
+  (mirroring what `single_precision_defect_is_preserved` checks in Rust
+  at GPS seconds 1356998418/1356998422). Such a vector would need two
+  frames whose `GPSSEC` fields (decoded per `TIMCNV`) differ by exactly 4
+  at that epoch, with everything else in the frame held constant, and an
+  expected `.out` where both `SSP` lines are byte-identical.
+- **No vector exercises the longitude-wrap boundary.** None of the
+  existing vectors drive `XLON` to land at or just past ±180° before the
+  correction branches at `geosat.f:583-584` fire. A new vector would need
+  `GSEC` values hand-solved against the propagator so that
+  `LONASC + in_track` crosses +180 in one frame and -180 in another,
+  confirming both correction branches independently.
+- **No vector exercises `GSEC` before `ELEPOC` (negative `DT`).** All
+  golden frames post-date epoch 630720000. A vector with GPS seconds less
+  than that would confirm FORTRAN `AMOD`'s sign-preserving behaviour
+  (unlike Python's `%`) is correctly reproduced by `fmod` in
+  `precision.rs` for negative arguments.
+- **No vector isolates `ORBPRP`'s inputs from the rest of the frame.**
+  Every existing vector varies raw telemetry counts and `GSEC` together,
+  so a diff against a future change to this routine alone is not directly
+  readable from the golden output; a vector holding raw counts fixed
+  while varying only `GSEC` across frames would make such a diff trivial.
 
 ## 4. Incremental steps
 
-Each step is reviewable and revertible independently; none combines a port
-with a behaviour change; the full characterization suite
-(`modern/tests/test_characterization.py`) and unit suite
-(`modern/tests/test_units.py`) must stay green after every step.
+Every step below must leave the characterization suite
+(`modern/tests/characterization.rs`) and the existing `ORBPRP`-adjacent
+unit tests green, and preserves current byte-for-byte output.
 
-1. **Add the two missing golden vectors** (longitude-wrap boundary case and
-   the single-precision `DT` collapse-boundary case) to
-   `legacy/tests/golden/`, generate their expected output by running the
-   *existing, unmodified* legacy binary, and commit the pair
-   (`.tlm` input + `.out` expected) to `legacy/tests/expected/`. No source
-   changes in this step.
-2. **Add the corresponding modern unit assertions** in
-   `modern/tests/test_units.py` (`OrbitTest`) that pin: (a) `SSALT`/
-   `altitude_km` is always exactly `ELALT` regardless of `GSEC`, and (b) the
-   `ARGLAT` wrap is correct for a `GSEC` several periods past `ELEPOC`. No
-   changes to `modern/geosat_modern/orbit.py` in this step — these tests
-   should already pass against the current port, since the port already
-   claims to replicate the behaviour; the step's purpose is to make the
-   claim checkable.
-3. **Register the two new vectors** in `VECTORS` inside
-   `modern/tests/test_characterization.py` so they run through the
-   byte-for-byte legacy-vs-modern parity harness. This is purely wiring, not
-   a behaviour change, and should pass immediately given step 1's output was
-   generated from the same legacy binary the harness builds.
-4. **Document the preserved defects inline**, if not already fully covered,
-   by extending code comments (not logic) in `modern/geosat_modern/orbit.py`
-   to reference the specific new pinned tests by name, so a future reader
-   sees "defect X is pinned by test Y" rather than having to rediscover it.
-   No arithmetic changes.
+1. **Add the missing golden vectors** (current-epoch DT-quantization
+   pair, longitude-wrap boundary pair, pre-epoch negative-`DT` frame) as
+   new files under `legacy/tests/golden/*.tlm`, with corresponding
+   `legacy/tests/expected/*.out` generated by running the *compiled
+   legacy binary* against them (never hand-computed), and register the
+   new vector names in `characterization.rs::VECTORS`. This is pure
+   test-data addition; no change to `geosat.f`, `geosat.inc`, or
+   `orbit.rs`.
+2. **Add matching unit tests in `modern/tests/units.rs`** for the
+   longitude-wrap and negative-`DT` cases, calling `propagate()` directly
+   with the same GPS seconds as the new vectors in step 1, asserting
+   against the values captured from the legacy binary's output. Test-only
+   change.
+3. **Add an explicit test for `AMOD` sign semantics** on
+   `modern/src/precision.rs::fmod`, e.g. asserting `fmod(-x, 2*PI)`
+   matches the sign-preserving FORTRAN `AMOD` result rather than an
+   always-positive modulo, using the pre-epoch vector from step 1 as the
+   oracle for expected sign/magnitude. Test-only change.
+4. Only after 1–3 are green: **open a separate follow-up plan**,
+   explicitly flagged as out of scope for this PR, addressing whether the
+   single-precision `DT` defect and the frozen-element-set behaviour
+   should ever be corrected, and under what versioned/flagged mechanism
+   the archive loader would distinguish pre- and post-correction SSP
+   values. This plan does not authorize that work; it only names it so it
+   is not lost.
 
-No step in this plan proposes changing `ORBPRP`'s numerical behaviour,
-`geosat.inc`'s COMMON layout, or the `REPORT` format statements. This plan
-is characterization-only.
+No step in this list modifies `geosat.f`, `geosat.inc`, or `orbit.rs`.
 
 ## 5. Proof obligation per step
 
-- **Step 1:** `python -m unittest modern.tests.test_characterization` must
-  still pass for the four existing vectors (unaffected), and the newly
-  committed `.out` files must be byte-identical to what
-  `legacy/build/geosat` emits for the new `.tlm` inputs — verified by
-  running the built legacy binary against the new input and diffing against
-  the committed expected file before commit (this is a one-time generation
-  step, not an ongoing test in itself; the ongoing proof is step 3).
-- **Step 2:** the two new/extended cases in
-  `modern/tests/test_units.py::OrbitTest` pass under
-  `python -m unittest modern.tests.test_units`.
-- **Step 3:** `python -m unittest modern.tests.test_characterization` passes
-  with `VECTORS` including the two new names, i.e.
-  `CharacterizationTest` reports byte-for-byte parity for all six vectors,
-  not four.
-- **Step 4:** no automated proof beyond "the full suite from steps 1-3 still
-  passes unchanged" — this step is comment-only and is proven by absence of
-  any diff to test results.
-
-Naming: the tests above already exist or are named explicitly; "verify
-correctness" is never the sole proof for any step.
+- **Step 1**: `cargo test --test characterization` passes with the new
+  vector names added to `VECTORS`. The harness already refuses to pass
+  without building and running the real legacy binary as the oracle, so
+  a green run is proof the new fixtures are consistent with the legacy
+  deck, not merely plausible-looking.
+- **Step 2**: the new `#[test]` functions in `modern/tests/units.rs` pass,
+  each asserting the exact `latitude_deg`/`longitude_deg` captured from
+  the legacy-binary run in step 1 — e.g.
+  `longitude_wrap_boundary_matches_legacy` and
+  `negative_dt_before_epoch_matches_legacy` (naming the test is the
+  proof).
+- **Step 3**: the new `#[test]` for `fmod` sign semantics passes, using
+  the legacy-binary-derived expected value from the pre-epoch vector as
+  the oracle (not just comparing against Rust's own `%` operator in
+  isolation, which would only prove internal self-consistency).
+- **Step 4**: not proven by a test — it is scoped as a decision document;
+  the proof obligation is explicit human sign-off, tracked under Open
+  Questions below.
 
 ## 6. Explicitly out of scope
 
-- Any change to `ORBPRP`'s arithmetic, precision, or element set.
-- Any change to `geosat.inc` COMMON block layout (`/ORBBLK/` or otherwise).
-- Any change to `REPORT`'s format statements or column positions — the
-  archive loader's fixed-column contract is untouched.
-- Fixing the single-precision `DT` defect, the frozen-element-set gap, or
-  the non-propagated `SSALT` — these are flagged for a human mission-
-  assurance decision, not silently corrected here.
-- Any change to `TIMCNV`, `ENGCNV`, `LIMCHK`, or any other routine in the
-  deck.
-- Performance, style, or structural refactoring of `modern/geosat_modern/orbit.py`
-  beyond the comment addition in step 4.
-- Extending `orbit.py` or `ORBPRP` to consume a real, updatable element set.
+- Any change to `DT`'s precision, the frozen element set, the
+  propagation model (circular, no J2/drag), or the wrap order of
+  `LONASC` vs. `in_track`.
+- Any change to `geosat.f`, `geosat.inc`, `modern/src/orbit.rs`, or any
+  existing test file — this task is documentation-only.
+- `REPORT`'s formatting of the `SSP` line (`geosat.f:599` onward) —
+  column layout is a separate concern with its own preserved-defect
+  surface (see `modern/src/fortran.rs`'s asterisk-fill behaviour) and is
+  not touched here.
+- `TIMCNV`, `ENGCNV`, `LIMCHK`, `TLMDEC` — upstream of `ORBPRP`, each with
+  its own COMMON-block coupling, out of scope for this plan.
+- Any runtime validation of `GSEC` or rejection of stale/invalid frames
+  before propagation — named in Preserved Defect #3 as a candidate future
+  behaviour change, not something to add now.
 
 ## 7. Open questions for a human
 
-- Should the single-precision `DT` truncation defect ever be corrected, and
-  if so, is a coordinated archive re-baseline (recomputing historical SSP
-  values) acceptable, or must the defect be preserved indefinitely for
-  archive continuity?
-- Is the frozen, non-updatable element set (`ELALT`/`ELINC`/`ELRAAN`/
-  `ELEPOC`) an accepted permanent limitation of the quick-look product, or
-  is there an intent to eventually port an element loader — and if so, does
-  that change the archive schema (currently one static altitude value)?
-- Given `ORBPRP`'s own documented caveat that it must not be used for
-  pointing or conjunction products, should the archive record explicitly
-  flag SSP values as "quick-look only," and if so, is that a format change
-  requiring downstream archive-loader coordination (out of scope for this
-  plan, but worth flagging)?
+1. Should the single-precision `DT` truncation ever be corrected, and if
+   so, does the archive loader need a schema/version field to distinguish
+   pre- and post-correction SSP values already on file? This plan does
+   not decide that; it only names it (Preserved Defect #1).
+2. Is it acceptable to keep archiving "quick look" (non-ephemeris) SSP
+   values indefinitely, or should there be a parallel channel/flag
+   marking these records as not-for-pointing-use, given that memo
+   GS-89-112's warning is currently enforced only by a source comment?
+   If a flag is added, is that a change to `REPORT`'s fixed-column format
+   (breaking the archive contract) or a new field appended at end of
+   line (non-breaking)? That format decision is a human, mission-
+   assurance call.
+3. Should the frozen orbital elements (altitude/inclination/RAAN/epoch)
+   ever be refreshed from a real element set, and who owns validating
+   that against the FDF's precision ephemeris before such a change is
+   even considered?
+4. Is adding new golden vectors (step 1) within the spirit of "do not
+   modify the legacy deck, the modern package, or any test"? This plan
+   treats new `.tlm`/`.out` fixture files as test *data*, not the deck
+   itself or existing tests (`legacy/src/geosat.f` and all current test
+   files remain untouched), but a human should confirm that reading
+   before step 1 is executed.
