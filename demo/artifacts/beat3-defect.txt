@@ -1,13 +1,22 @@
-[3J[H[2J== frames four seconds apart, per the 1987 binary ==
+[3J[H[2J== frames four seconds apart, per the original FORTRAN ==
 2:SCID= 42  APID=  7  FRAME=    100000
 3:UTC 2023-01-06 00:00:00  DOY=006
 4:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
 18:SCID= 42  APID=  7  FRAME=    100001
 19:UTC 2023-01-06 00:00:04  DOY=006
-20:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+20:SSP LAT=  81.112  LON=   32.250  ALT=  785.0   <-- did not move
 34:SCID= 42  APID=  7  FRAME=    100002
 35:UTC 2023-01-06 00:00:08  DOY=006
-36:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+36:SSP LAT=  81.112  LON=   32.250  ALT=  785.0   <-- did not move
+50:SCID= 42  APID=  7  FRAME=    100003
+51:UTC 2023-01-06 00:00:12  DOY=006
+52:SSP LAT=  81.112  LON=   32.250  ALT=  785.0   <-- did not move
+66:SCID= 42  APID=  7  FRAME=    100004
+67:UTC 2023-01-06 00:00:16  DOY=006
+68:SSP LAT=  79.621  LON=   12.250  ALT=  785.0   <== JUMPED 251 miles in one frame
+82:SCID= 42  APID=  7  FRAME=    100005
+83:UTC 2023-01-06 00:00:20  DOY=006
+84:SSP LAT=  79.621  LON=   12.250  ALT=  785.0   <-- did not move
 
 == and the Rust port, on the same input ==
 2:SCID= 42  APID=  7  FRAME=    100000
@@ -15,10 +24,20 @@
 4:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
 18:SCID= 42  APID=  7  FRAME=    100001
 19:UTC 2023-01-06 00:00:04  DOY=006
-20:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+20:SSP LAT=  81.112  LON=   32.250  ALT=  785.0   <-- did not move
 34:SCID= 42  APID=  7  FRAME=    100002
 35:UTC 2023-01-06 00:00:08  DOY=006
-36:SSP LAT=  81.112  LON=   32.250  ALT=  785.0
+36:SSP LAT=  81.112  LON=   32.250  ALT=  785.0   <-- did not move
+50:SCID= 42  APID=  7  FRAME=    100003
+51:UTC 2023-01-06 00:00:12  DOY=006
+52:SSP LAT=  81.112  LON=   32.250  ALT=  785.0   <-- did not move
+66:SCID= 42  APID=  7  FRAME=    100004
+67:UTC 2023-01-06 00:00:16  DOY=006
+68:SSP LAT=  79.621  LON=   12.250  ALT=  785.0   <== JUMPED 251 miles in one frame
+82:SCID= 42  APID=  7  FRAME=    100005
+83:UTC 2023-01-06 00:00:20  DOY=006
+84:SSP LAT=  79.621  LON=   12.250  ALT=  785.0   <-- did not move
 
-The clock moves. The spacecraft does not. That is the bug --
-reproduced exactly, on purpose, and NOT fixed.
+Frames are 4 seconds apart. The spacecraft should move ~19 miles
+between each one. Instead it sits still, then teleports.
+That is the bug -- reproduced exactly, on purpose, and NOT fixed.

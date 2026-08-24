@@ -343,59 +343,95 @@ Twenty-two tests. Read the parity result.
 > an archive loader that parses this output by column position. So "equivalent"
 > gets you an outage. It has to be identical.
 >
-> Quick note on why Rust, since somebody's going to ask. This deck declares
-> every value as REAL(4) — 32-bit float. Rust has that as a native type, so the
-> add, subtract, multiply and divide in the port match the 1987 numeric model
-> to the bit, natively, instead of being emulated. And Rust won't fuse a
-> multiply and an add behind your back, which is the exact thing we had to
-> switch off in the FORTRAN compiler to make the two comparable at all.
->
-> I'll caveat the one place that's not free — sines and cosines still go
-> through the platform math library, so "byte identical" is a claim about the
-> vectors we pinned on the hardware we pinned them on, not a law of physics.
-> You'd re-pin on your target.
->
-> Granted, all of that's a nice-to-have. The part that actually matters to you
-> is that it's one binary — no interpreter, no garbage collector, and a
-> zero-dependency crate graph. That's a much easier conversation with your ISSO
-> than a language runtime on a closed network.
+> One line on why Rust, and then I'll move on — it's one binary. No
+> interpreter, no garbage collector, nothing to install. That's a much easier
+> conversation with your ISSO than a language runtime on a closed network.
+
+*(The full "why Rust" answer is in the if-asked bank at the end of this beat.
+Do not volunteer it — it costs you a minute and it is not what this beat is
+about.)*
 
 Now the part the room remembers:
+
+### What this beat actually is, in plain English
+
+There is a real bug in the 1987 program. The satellite's position stops updating
+for sixteen frames in a row, then jumps 251 miles all at once.
+
+Why: to work out where the spacecraft is, the program needs the time elapsed
+since somebody last measured the orbit. Those measurements were taken in 2000,
+so by 2023 that's about 726 million seconds. It stores that in a 32-bit float,
+which keeps about seven digits of precision — and up at 726 million, the closest
+two numbers it can even represent are 64 seconds apart. Four seconds isn't a
+value it has. So four seconds rounds to zero change, sixteen times, and then it
+snaps to the next one it can hold.
+
+We copied that bug into the Rust port on purpose, and there's a test —
+`single_precision_defect_is_preserved` in `modern/tests/units.rs` — that fails if
+anyone corrects it.
+
+That last sentence is the whole beat. Everything else is setup for it.
 
 ```bash
 make defect
 ```
 
 > So while we were doing this, we found a bug. And I'd rather show you the
-> symptom than describe it. Top block is the 1987 binary. Look at those three
-> frames — the frame counter goes up, the UTC timestamp goes up, and the
-> sub-satellite point is identical. Same latitude, same longitude, three frames
-> in a row.
+> symptom than explain it, so let me tell you what should happen first.
 >
-> Bottom block is the Rust port on the same telemetry. Same three frames, same
-> frozen position, same everything.
+> This spacecraft is in low orbit, moving about five miles a second. These
+> frames are four seconds apart. So between any two lines on this screen, it
+> should have traveled about nineteen miles.
 >
-> The elapsed-time value in the orbit propagator is about seven hundred and
-> thirty million seconds and it's carried in single precision. It doesn't fit.
-> So four seconds of motion rounds away to nothing, and the spacecraft appears
-> to be parked. That's been wrong since 1987.
+> Top block is the legacy FORTRAN, compiled from the original deck. Frame
+> counter goes up. Clock goes up — four seconds, eight, twelve. Latitude and
+> longitude don't change at all. Then look at that fifth frame. It moves 251
+> miles in a single step.
 >
-> And here's the uncomfortable part, and this is the part I'd push on if I were
+> So it's not drifting and it's not stuck. It sits perfectly still for about a
+> minute, and then it teleports.
+>
+> Bottom block is the Rust port on the same telemetry. Same stall, same
+> teleport, same numbers.
+>
+> Here's why, and you don't need to be a programmer for it. To figure out where
+> the spacecraft is, the program needs to know how long it's been since somebody
+> actually measured the orbit. Those measurements were taken in 2000, so by 2023
+> that's about seven hundred and twenty-six million seconds. And it keeps that
+> number in a format that holds about seven digits.
+>
+> Think of a ruler where the tick marks up at that end are sixty-four seconds
+> apart. Four seconds doesn't land on a tick. So it rounds back to the one it's
+> already sitting on, over and over, and then eventually it's close enough to
+> the next tick and it snaps. That's the stall and that's the jump. Same cause.
+>
+> And here's the uncomfortable part, and it's the part I'd push on if I were
 > sitting where you're sitting — we did not fix it. It's in the port, wrong, on
-> purpose, with a test pinning it that way.
+> purpose, with a test that fails if you correct it.
 >
-> Because thirty-eight years of archived data were produced by that bug. Fixing
-> it means every historical value stops matching. That's not an engineering
-> call. That's a mission call, it goes to a human, and it goes on a completely
-> separate change than the one that moves the language.
+> Because if this were your program, every record it has ever produced came out
+> of that behavior. Correct the precision and every one of those values stops
+> matching. That is not an engineering call. That's a mission call, it goes to a
+> human, and it goes on a completely separate change than the one that moves the
+> language.
 >
-> There are five of these preserved in the repo. Stale leap seconds. Two
-> telemetry channels sharing a byte because of a wiring change in '91. The
-> error message that prints the wrong frame number. All pinned, all documented,
-> none of them fixed.
+> And there's a second half to this that's arguably worse. Some of what's in
+> there looks like a bug and isn't. There's a channel that gets rebuilt out of
+> four bits borrowed from a byte that belongs to something else — that reads
+> like a mistake, and it is the actual wire format, from a 1991 engineering
+> change order. When a number is too wide for its column, the program fills the
+> column with asterisks, and the archive loader downstream reads this file by
+> column position, so that's part of the contract too.
 >
-> If an AI tool cleans those up for you silently because they look like bugs,
-> it just corrupted your archive and it was very confident about it.
+> So you've got real bugs you must not fix, sitting right next to correct
+> behavior that looks broken. And I want to be careful here — the tests don't
+> tell you which is which. A human did that, off the comments in the source and
+> a thirty-year-old change order. What the tests do is make the decision stick,
+> so the next person who touches this can't quietly undo it.
+>
+> Because if an AI tool tidies that up because it looks wrong, it just broke
+> compatibility with every record this program has ever written, and it was
+> very confident about it.
 
 **Fallback:** if parity fails on stage, do not debug. Say *"that's a real
 failure and I'll take it offline — here's this morning's run"* and
@@ -407,6 +443,22 @@ straight: the port was written with Copilot, and every line of it is only
 trustworthy because the characterization suite was written *first*, against
 the compiled original. The tests are the deliverable. The port is the easy
 part.
+
+**If asked "why Rust?"** — this is the full answer, and it is deliberately not
+in the spoken flow, because it costs a minute and it is a language argument,
+not a modernization argument. Only give it if someone asks.
+
+    Yeah, so — this deck declares every value as REAL(4), 32-bit float. Rust
+    has that as a native type, so the add, subtract, multiply and divide in the
+    port match the 1987 numeric model to the bit, natively, instead of being
+    emulated. And Rust won't fuse a multiply and an add behind your back, which
+    is the exact thing we had to switch off in the FORTRAN compiler to make the
+    two comparable at all.
+
+    I'll caveat the one place that's not free — sines and cosines still go
+    through the platform math library, so "byte identical" is a claim about the
+    vectors we pinned on the hardware we pinned them on, not a law of physics.
+    You'd re-pin on your target.
 
 ---
 
@@ -613,8 +665,58 @@ the top of it. The fencing narration is what you keep.
 
 **~2 minutes.** Left terminal.
 
-> Last thing, and this is short. Everything I just showed you rests on that
-> test suite. So a green suite is worth nothing until you've watched it go red.
+### What this beat actually is, in plain English
+
+This is **mutation testing**, and the one-sentence version is: *you break the
+code on purpose to find out whether the tests were ever really watching.*
+
+Here's the problem it solves. A test suite that passes tells you one of two
+things, and from the outside they look identical:
+
+- the tests are checking real behaviour, and the behaviour is right, **or**
+- the tests aren't really checking anything, so of course they pass
+
+Green looks the same either way. That's the trap. Plenty of suites in the world
+are green because the assertions are too loose to ever fail.
+
+So instead of trusting green, you go break something. Change one line of real
+logic to something wrong, run the suite, and see if it goes red. If it does, the
+tests were genuinely watching that behaviour. If it stays green, you just found a
+blind spot — the tests were never covering that at all.
+
+`make beat5` does that six times, automatically, reverting cleanly each time.
+
+**Why it belongs in this demo specifically.** Every claim in Beats 3, 4 and 4b
+leans on the same load-bearing sentence: *the tests prove the Rust matches the
+1987 FORTRAN byte for byte.* If those tests are hollow, the whole argument is
+hollow — the port isn't proven, the agent's pull request isn't proven, none of
+it. Beat 5 is the audit of the auditor. It's short, and it's the beat that makes
+the other five worth anything.
+
+**The six mutations aren't random.** Each one is a change a well-meaning
+engineer would actually make on a Tuesday. The second one is the important one:
+it *fixes* the float32 orbit bug from Beat 3. That is the exact "helpful"
+cleanup that would silently break parity — and the suite catches it. That's the
+demo's thesis closing on itself.
+
+*Operator note (do not narrate):* the script refuses to run on a dirty tree,
+reverts every mutation with `git checkout --`, and bumps source mtimes so cargo
+can't serve a stale binary. A mutation that fails to **compile** is reported as
+`REJECTED BY COMPILER` and counted as a defect in the mutation, not a success —
+because "the compiler caught it" is not the claim being made.
+
+### Narration
+
+> Last thing, and this is short. Everything I just showed you rests on that test
+> suite. So here's the honest problem with test suites.
+>
+> A suite that passes looks exactly the same whether it's checking everything or
+> checking nothing. Green is green. You cannot tell from the outside.
+>
+> It's the smoke detector on your ceiling. It's been silent for four years. Is
+> that because there's been no fire, or because the battery died in 2022? Same
+> silence either way. The only way to know is to push the button and make it
+> scream.
 
 ```bash
 make beat5
@@ -622,11 +724,22 @@ make beat5
 
 Six mutations, six `caught by the suite`.
 
-> That introduces six real defects into the code — flips a bit in the CRC
-> polynomial, quietly "fixes" the float32 bug, decouples the two telemetry
-> channels that share a byte — and it requires the suite to catch every one.
-> It does. That's the difference between tests that pass and tests that mean
-> something.
+> So that's me pushing the button. It goes into the new Rust code and breaks it
+> on purpose, six different ways, and every single time it demands that the
+> tests notice. Then it puts the code back.
+>
+> And these aren't nonsense changes. Every one is something a reasonable
+> engineer would actually do on a Tuesday. Flip one bit in the checksum. Widen a
+> field that was overflowing. Refresh a leap-second count that's stale.
+>
+> Look at the second one though. That one *fixes* the orbit bug. The 1987 bug I
+> showed you in Beat 3 — that mutation goes in and corrects it, the
+> helpful thing, the thing you'd thank somebody for.
+>
+> Caught. Instantly. Because it changed the output, and matching the output is
+> the whole contract.
+>
+> That's the difference between tests that pass and tests that mean something.
 >
 > And look at the wording there — "caught by the suite." That's deliberate.
 > In a typed language it's really easy to write a fake mutation the *compiler*
@@ -696,25 +809,25 @@ morning. Re-measure after any narration edit.
 |---|---|---|---|---|---|
 | 0 | What the thing does | 1:45 | — | 1:45 | 1:45 |
 | 1 | The deck still runs | 2:36 | 0:05 | 2:41 | 4:26 |
-| 2 | Map it, in-boundary | 5:06 | 0:15 | 5:21 | 9:47 |
-| 3 | Characterize and port | 3:28 | 0:05 | 3:33 | 13:20 |
-| 4 | Agent plans | 2:10 | 1:45 | 3:55 | 17:15 |
-| 4b | Agent writes the port | 4:22 | 1:00 | 5:22 | 22:37 |
-| 5 | Mutation check and close | 1:36 | 0:10 | 1:46 | 24:23 |
+| 2 | Map it, in-boundary | 5:10 | 0:15 | 5:25 | 9:51 |
+| 3 | Characterize and port | 4:23 | 0:05 | 4:28 | 14:19 |
+| 4 | Agent plans | 2:10 | 1:45 | 3:55 | 18:14 |
+| 4b | Agent writes the port | 4:22 | 1:00 | 5:22 | 23:36 |
+| 5 | Mutation check and close | 2:33 | 0:10 | 2:43 | 26:19 |
 
 The "commands" time on Beats 4 and 4b is you walking a pull request in the
 browser, which is the one place you will naturally run long.
 
 ### Read this before you build the run of show
 
-**24:23 is over your slot. Run Beat 4 or Beat 4b — not both.** They make the
+**26:19 is over your slot. Run Beat 4 or Beat 4b — not both.** They make the
 same argument twice, and the second telling is always the one that gets rushed.
 
 | Run of show | Lands at | Pick it when |
 |---|---|---|
-| **4b, drop 4** | 20:28 | **Default.** The room's real objection is "can AI actually build anything." 4b answers it and still shows `safe-outputs`. |
-| 4, drop 4b | 19:01 | The room is governance-first — auditors, ISSMs, ATO people. A plan a human approves is the friendlier first contact. |
-| Both | 24:23 | Only if you genuinely have 25+ minutes and no Q&A. |
+| **4b, drop 4** | 22:24 | **Default.** The room's real objection is "can AI actually build anything." 4b answers it and still shows `safe-outputs`. |
+| 4, drop 4b | 20:57 | The room is governance-first — auditors, ISSMs, ATO people. A plan a human approves is the friendlier first contact. |
+| Both | 26:19 | Only if you genuinely have 25+ minutes and no Q&A. |
 
 Either way you still dispatch **both** runs at T-10, because it costs nothing
 and gives you a live spare if one run is slow or fails.
@@ -732,10 +845,12 @@ hands (0:30).
 | Beat 4 → skip `cat`-ing the workflow, say `safe-outputs` over the PR | 0:50 | Lose "you can read the whole agent" |
 | Beat 0 → the three-sentence version | 1:15 | Non-technical half is thinner in Beat 3 |
 | Beat 1 → skip the show of hands, skip the aside | 0:55 | Colder open |
+| Beat 5 → keep the smoke detector and the result, drop the "six mutations aren't random" passage | 0:45 | Lose the callback to Beat 3's bug. Still lands. |
+| Beat 3 → drop the "second half" passage (channel 11, the asterisks, the tests-don't-classify caveat) | 1:00 | Lose "correct behavior that looks broken." The preserved bug alone still carries the beat. **Take this one first if Beat 3 runs long.** |
 | Beat 2 → drop the "paste it into a model" paragraph | 0:30 | Weakens the *why AI needs this* argument. Last resort. |
 
-Applied on top of the 4b-only run of show (20:28), the first two cuts get you
-to **18:48**, and the first three to **17:33**. If you are running 4b and your
+Applied on top of the 4b-only run of show (22:24), the first two cuts get you
+to **19:49**, and the first three to **18:34**. If you are running 4b and your
 slot includes Q&A, **take the first two cuts before you walk up** — 4b is the
 longest beat in the deck and it is the one you least want to rush.
 

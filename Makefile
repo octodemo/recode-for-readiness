@@ -35,7 +35,7 @@ help:
 	@echo "    make beat1          the deck still runs, and nobody knows why"
 	@echo "    make beat2          comprehension, in-boundary, no model"
 	@echo "    make beat3          characterize, port to Rust, prove byte parity"
-	@echo "    make defect         the clock moves, the spacecraft does not"
+	@echo "    make defect         the spacecraft stalls, then teleports"
 	@echo "    make beat4          hand the loop to an agent, in CI"
 	@echo "    make beat4b         the agent writes the port, and cannot cheat"
 	@echo "    make beat5          prove the tests can fail"
@@ -126,18 +126,19 @@ beat3:
 # The port reproduces it exactly -- and deliberately does not fix it.
 defect:
 	@clear
-	@echo "== frames four seconds apart, per the 1987 binary =="
+	@echo "== frames four seconds apart, per the original FORTRAN =="
 	@$(MAKE) -C legacy all >/dev/null 2>&1
 	@set -o pipefail; ./legacy/build/geosat < legacy/tests/golden/$(VECTOR).tlm \
-	  | grep -n "SCID=\|UTC \|SSP LAT" | sed -n '1,9p'
+	  | grep -n "SCID=\|UTC \|SSP LAT" | sed -n '1,18p' | awk -f tools/mark-frozen.awk
 	@echo
 	@echo "== and the Rust port, on the same input =="
 	@cd modern && cargo build --quiet 2>/dev/null
 	@set -o pipefail; ./modern/target/debug/geosat_modern < legacy/tests/golden/$(VECTOR).tlm \
-	  | grep -n "SCID=\|UTC \|SSP LAT" | sed -n '1,9p'
+	  | grep -n "SCID=\|UTC \|SSP LAT" | sed -n '1,18p' | awk -f tools/mark-frozen.awk
 	@echo
-	@echo "The clock moves. The spacecraft does not. That is the bug --"
-	@echo "reproduced exactly, on purpose, and NOT fixed."
+	@echo "Frames are 4 seconds apart. The spacecraft should move ~19 miles"
+	@echo "between each one. Instead it sits still, then teleports."
+	@echo "That is the bug -- reproduced exactly, on purpose, and NOT fixed."
 
 # ~5 min. The loop runs in CI, as a reviewable pull request.
 # The fence is the whole argument in beat 4b, so show it rather than describe

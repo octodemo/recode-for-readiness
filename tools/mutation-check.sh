@@ -55,7 +55,7 @@ FAILED=0
 run_mutation() {
   local name="$1" file="$2" expr="$3" rationale="$4"
 
-  printf '  %-34s ' "$name"
+  printf '  %-36s ' "$name"
 
   sed -i '' "$expr" "$file"
   touch_sources

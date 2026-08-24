@@ -43,7 +43,7 @@ Both run on `main`. Nothing to stage, nothing to reset. Plan ~8m30s, implement
 | 0 | What it does | *no terminal — just talk* | 1 |
 | 1 | Deck still runs | `make beat1` | 2 |
 | 2 | Map it, in-boundary | `make beat2` → `make viz` → queries below | 3 |
-| 3 | Characterize + port to Rust | `make beat3` → `make defect` | 5 |
+| 3 | Characterize + port to Rust | `make beat3` → `make defect` | 4:30 |
 | 4 | Agent plans | *right terminal*, see below | 5 |
 | 4b | Agent writes the port | *right terminal*, PR from run 2 | 3 |
 | 5 | Tests can fail | `make beat5` | 2 |
@@ -118,8 +118,9 @@ All real captured output, not mockups. Never debug live.
    filtered from the output, so nothing names a competitor on screen. Proxy
    blackhole is not an air-gap; say so. Do not explain parsers.
    `make viz` is the picture. It renders offline; say that out loud.
-3. **Beat 3** — `make defect` is the best 30 seconds in the demo. Clock moves,
-   spacecraft doesn't. And you did **not** fix it.
+3. **Beat 3** — `make defect` is the best 30 seconds in the demo. It sits still
+   for four frames, then **teleports 251 miles**. Say what *should* happen first
+   (~19 miles per frame) or the room won't see it. And you did **not** fix it.
 4. **Beat 5** — never cut it. It's what makes the other four credible.
 
 ## Routine names (expand on first use)
