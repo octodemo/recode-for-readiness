@@ -145,10 +145,18 @@ else
   bad "workflows not compiled -- 'gh aw compile'"
 fi
 
-if compgen -G "demo/artifacts/*" >/dev/null; then
-  ok "frozen fallback artifacts present"
+# Named explicitly rather than globbed: the runbook cites these four files by
+# path, so a glob that matches some other stray file would report a fallback
+# that is not actually there.
+missing_art=""
+for a in modernization-plan-pr.md modernization-plan-run.log \
+         implement-pr.md implement-run.log; do
+  [ -s "demo/artifacts/$a" ] || missing_art="$missing_art $a"
+done
+if [ -z "$missing_art" ]; then
+  ok "frozen fallback artifacts present (beats 4 and 4b)"
 else
-  warn "no frozen artifacts -- beat 4 has no fallback"
+  warn "missing frozen artifacts:$missing_art"
 fi
 
 if git ls-files --error-unmatch docs/plans/.gitkeep >/dev/null 2>&1; then

@@ -1,38 +1,34 @@
 ## What the routine does
 
-`TIMCNV` (`legacy/src/geosat.f:440-509`) converts a GPS seconds-of-epoch count into UTC calendar fields, stored in the `TIMBLK` common block (`UTCYR, UTCMON, UTCDAY, UTCHR, UTCMIN, UTCSEC, UTCDOY`):
+`TIMCNV` (`legacy/src/geosat.f:440-509`) converts GPS seconds-of-epoch into UTC calendar fields.
 
-1. Backs out a hand-maintained leap-second offset (`LEAPS = 18`, `geosat.f:448`) to get raw UTC total seconds (`geosat.f:462`).
-2. Splits into whole days and a seconds-of-day remainder, correcting for negative remainders by borrowing a day (`geosat.f:464-469`).
-3. Derives hour/minute/second from the remainder (`geosat.f:471-473`).
-4. Walks forward year-by-year from the GPS epoch (1980 Jan 06, hence `NDAYS = NDAYS + 5`, `geosat.f:477`), consuming a full year's day-count (365 or 366, using the standard Gregorian leap-year test) each iteration until the remaining day count fits within the current year (`geosat.f:479-490`).
-5. Walks forward month-by-month the same way, using `MDAYS` and the same leap-year test for February, to get month/day-of-month (`geosat.f:492-506`).
+1. Backs out a hardcoded 18s leap-second offset (`geosat.f:462`, `LEAPS` DATA statement at `:448`) to get UTC seconds.
+2. Splits into day count and remainder-of-day via truncating integer division, with a manual correction when the remainder is negative (`geosat.f:464-469`) — this reproduces floor-division semantics using FORTRAN's truncating `/`.
+3. Derives hour/minute/second from the remainder (`:471-473`).
+4. Walks forward year-by-year from the GPS epoch 1980-01-06 (`:475-486`), using a leap-year test written as two sequential `IF`s (div-by-4-not-100, then div-by-400 override) rather than one boolean expression (`:481-482`).
+5. Records year and day-of-year (`:488-490`).
+6. Walks forward month-by-month through a fixed `MDAYS` table, re-deriving February's length with the same leap-year test (`:492-502`).
+7. Records month and day-of-month (`:504-506`).
 
 ## How the port proves it
 
-Ported to `modern/src/timebase::to_utc` using `i64` throughout (the legacy routine is entirely `INTEGER`), with Rust's `/` (truncating toward zero, same as FORTRAN integer division) and the same loop structure and leap-year tests as the FORTRAN, in the same order.
-
-- `cargo test` in `modern/`: **22 tests pass** (2 characterization tests comparing against the compiled 1987 binary + expected golden output across all vectors, 20 unit tests including the two `timebase` cases `gps_epoch_converts_to_1980_01_06` and `leap_year_day_of_year`).
-- No files outside `modern/src/timebase.rs` were touched.
+Rewrote `modern/src/timebase.rs` from scratch against `legacy/src/geosat.f` only (did not consult the prior Rust body, only its public `to_utc`/`UtcTime` signature used by `pipeline.rs`/`report.rs`). Ran `cd modern && cargo test`: all 22 tests pass — 2 characterization tests (byte-for-byte diff of all golden vectors through the 1987 binary vs. the Rust port) and 20 unit tests, including `gps_epoch_converts_to_1980_01_06` and `leap_year_day_of_year`.
 
 ## Preserved defects
 
-None identified. The routine is pure integer arithmetic with no floating-point rounding traps, and the leap-year test (`MOD(YR,4)==0 .AND. MOD(YR,100)!=0`, then override to leap if `MOD(YR,400)==0`) is the standard correct Gregorian rule, faithfully reproduced.
+None specific to this routine beyond what was already documented: the leap-second constant (`LEAPS = 18`) is a hand-maintained value frozen as of 2016-12-31 per the header comment (`geosat.f:432-433`). It is reproduced verbatim as `LEAP_SECONDS = 18` rather than sourced from a live table — updating it is a behavioral change requiring its own golden vectors, not something to fix silently in a port.
 
 ## Numeric decisions
 
-- All arithmetic is `i64` (mapping FORTRAN `INTEGER`, effectively 32-bit but no risk of overflow for realistic GPS second ranges within `i64`).
-- Division and remainder use Rust's default truncating-toward-zero semantics, matching FORTRAN `INTEGER/INTEGER`; the explicit negative-remainder correction (`geosat.f:466-469`) is preserved exactly rather than relying on Rust's `%`/`rem_euclid`.
-- Loop order (year walk first, then month walk) preserved exactly since later day-count values are mutated in place across iterations, matching the FORTRAN `NDAYS = NDAYS - DINY` / `NDAYS = NDAYS - DIM` reassignments.
+`TIMCNV` is entirely `INTEGER` arithmetic (no `REAL` involved), so the `f32` precision rules in `precision.rs` don't apply here. The one place expression order/semantics were load-bearing: FORTRAN's `/` on integers truncates toward zero, not floor. I implemented the truncating division plus the explicit negative-remainder correction exactly as coded (`geosat.f:464-469`), rather than using Rust's `div_euclid`/`rem_euclid`, since those floor instead of truncate-then-correct — they happen to produce the same result for this specific correction pattern, but truncating division is what the deck actually specifies.
 
-## What was not done
+## What I did not do
 
-- No plan file existed at `docs/plans/timcnv.md`, so implementation followed `geosat.f` and `geosat.inc` directly.
-- `precision.rs`'s `f32` transcendental rules don't apply here — `TIMCNV` is pure integer arithmetic with no floating-point operations.
+Did not change the `UtcTime` struct shape or the `to_utc` function signature, since other modules (`pipeline.rs`, `report.rs`) depend on it. Landed on an implementation that is behaviorally very close to the prior port (both derived from the same straightforward FORTRAN), but restructured the leap-year test into a named `diny()` helper mirroring the deck's two-`IF` structure and rewrote all comments/naming independently from the source FORTRAN rather than the prior Rust.
 
-> Generated by [🔧 Modernization Implement](https://github.com/octodemo/recode-for-readiness/actions/runs/32752496833) · auto · 21.8 AIC · ⌖ 2.99 AIC · ⊞ 7.9K · [◷](https://github.com/search?q=repo%3Aoctodemo%2Frecode-for-readiness+%22gh-aw-workflow-id%3A+modernization-implement%22&type=pullrequests)
+> Generated by [🔧 Modernization Implement](https://github.com/octodemo/recode-for-readiness/actions/runs/32753407651) · auto · 22.8 AIC · ⌖ 6.44 AIC · ⊞ 8.2K · [◷](https://github.com/search?q=repo%3Aoctodemo%2Frecode-for-readiness+%22gh-aw-workflow-id%3A+modernization-implement%22&type=pullrequests)
 
-<!-- gh-aw-agentic-workflow: Modernization Implement, engine: copilot, model: auto, id: 32752496833, workflow_id: modernization-implement, run: https://github.com/octodemo/recode-for-readiness/actions/runs/32752496833 -->
+<!-- gh-aw-agentic-workflow: Modernization Implement, engine: copilot, model: auto, id: 32753407651, workflow_id: modernization-implement, run: https://github.com/octodemo/recode-for-readiness/actions/runs/32753407651 -->
 
 <!-- gh-aw-workflow-id: modernization-implement -->
 <!-- gh-aw-workflow-call-id: octodemo/recode-for-readiness/modernization-implement -->

@@ -27,9 +27,11 @@ not on stage.
 
 ```bash
 gh workflow run modernization-plan.lock.yml -f routine=ORBPRP
+gh workflow run modernization-implement.lock.yml --ref main -f routine=TIMCNV
 ```
 
-Agent takes ~8m30s. Beat 4 is ~16 min in. Do not skip this.
+Both run on `main`. Nothing to stage, nothing to reset. Plan ~8m30s, implement
+~13m. Beat 4 is ~16 min in. **Do not skip this.**
 
 ---
 
@@ -41,8 +43,12 @@ Agent takes ~8m30s. Beat 4 is ~16 min in. Do not skip this.
 | 1 | Deck still runs | `make beat1` | 2 |
 | 2 | Map it, in-boundary | `make beat2` → then queries below | 3 |
 | 3 | Characterize + port to Rust | `make beat3` → `make defect` | 5 |
-| 4 | Agent in CI | *right terminal*, see below | 5 |
+| 4 | Agent plans | *right terminal*, see below | 5 |
+| 4b | Agent writes the port | *right terminal*, PR from run 2 | 3 |
 | 5 | Tests can fail | `make beat5` | 2 |
+
+**Over 20 min? Cut 4b, keep 4.** If they want proof it can *build*, not just
+plan, invert it: cut 4, keep 4b.
 
 **Beat 2 queries** — the only time you leave the repo root:
 
@@ -109,7 +115,7 @@ Six characters was the FORTRAN 77 limit — that's why they look like this.
 
 | `ORBPRP` | **orbit propagate** — where it was over the Earth. Carries the defect. |
 |---|---|
-| `TIMCNV` | **time convert** — GPS seconds to UTC. Hand-edited leap second. |
+| `TIMCNV` | **time convert** — GPS seconds to UTC. Hand-edited leap second. Beat 4b re-derives it. |
 | `ENGCNV` | **engineering convert** — 23000 → 28.076 volts |
 | `TLMDEC` | **telemetry decom** — unpack the frame into channels |
 | `LIMCHK` | **limit check** — screen against red lines |

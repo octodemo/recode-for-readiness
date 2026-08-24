@@ -471,22 +471,25 @@ Beat 4 showed an agent that plans. Fair pushback: planning is the safe half.
 This is the other half — the agent writes production Rust — and the reason it's
 safe has nothing to do with trusting the agent.
 
-Everything on `main` is already ported and green, so the gap is on a branch:
-`demo/port-timcnv` has the body of `TIMCNV` removed. The suite is red and
-waiting. **Dispatch this at the same time as Beat 4's run**, before you start
-talking — it takes about as long.
+Runs on `main`. No staging branch, nothing deleted, nothing to reset — the
+agent is told to throw away our port of one routine and derive it again from
+the 1987 source. **Dispatch this at the same time as Beat 4's run**, before you
+start talking — it takes about as long.
 
 ```bash
 gh workflow run modernization-implement.lock.yml \
-  --ref demo/port-timcnv -f routine=TIMCNV
+  --ref main -f routine=TIMCNV
 ```
 
 > So the fair question after that last one is: fine, it wrote a *plan*. Plans
 > are cheap. Can it actually do the work?
 >
-> So this one does. Same setup, one routine — `TIMCNV`, time convert. Takes GPS
-> seconds off the spacecraft and turns them into a calendar date. And on this
-> branch, I deleted it. The port is empty and the test suite is failing.
+> So this one does. One routine — `TIMCNV`, time convert. Takes the raw seconds
+> count off the spacecraft and turns it into an actual calendar date.
+>
+> We've already ported that one. So I told it to ignore our version completely,
+> go back to the 1987 FORTRAN, and write it again from scratch. And then it has
+> to clear the same bar the humans cleared: byte for byte, or it doesn't count.
 
 Show the fencing first. This is the whole beat.
 
@@ -500,21 +503,25 @@ grep -A6 "allowed-files" .github/workflows/modernization-implement.md
 >
 > It can write `modern/src`. That's it. That's the whole list.
 >
-> It cannot touch the FORTRAN. That's the oracle — that's the thing that defines
-> what correct means. If it could edit that, "the port matches the original"
-> would mean nothing at all.
+> It cannot land a change to the FORTRAN. That's the oracle — the thing that
+> defines what correct even means. If it could edit that, "the port matches the
+> original" would mean nothing at all.
 >
-> It cannot touch the golden vectors or the expected output. That's the
-> evidence. Byte-for-byte identical to a file you were allowed to rewrite is not
-> evidence of anything.
+> It cannot land a change to the golden vectors — those are the recorded outputs
+> from the 1987 program that we check against. That's the evidence. Matching a
+> file you were allowed to rewrite is not evidence of anything.
 >
-> And it cannot touch the tests. That's the judge. It does not get to grade its
-> own homework.
+> And it cannot land a change to the tests. That's the judge. It does not get to
+> grade its own homework.
+>
+> And I want to be precise about *how* that works, because this room cares about
+> the difference. It's not that the prompt asks it nicely. It's that if the
+> change it hands back touches any of those files, the workflow refuses to open
+> the pull request at all.
 >
 > So there is exactly one way this agent gets a green pull request out of me. It
 > has to actually reproduce what a person wrote in 1987, to the byte. It can't
-> negotiate, it can't move a goalpost, it can't loosen an assertion. Those roads
-> are closed at the harness, not in the prompt.
+> move the goalpost.
 
 Then the result.
 
@@ -525,39 +532,49 @@ gh pr view "$PR" --json files --jq '.files[].path'
 
 > And there it is. One file. `modern/src/timebase.rs`. Nothing else.
 
-*Operator note (do not narrate):* the safe-output tool always cuts its branch
-from the default branch, so the PR's **Files changed** tab diffs against `main`,
-where the reference implementation already exists. Show the **file list** and the
-**body** — both are exactly right — and stay out of the diff tab. If someone
-asks to see the before/after, the honest answer is that `main` is already ported
-and the gap is on the demo branch, which is the truth and costs you nothing.
+*Operator note (do not narrate):* because this now runs on `main`, the
+**Files changed** tab is worth showing — it is the agent's re-derivation against
+our human port, side by side. Expect the two to differ in style and agree in
+behavior. If they came out nearly identical, that is a fine outcome too and the
+body will say so; the line is "two independent passes at the same 1987 source
+landed in the same place, which is what you want from a port."
 
 Open the PR. Walk the body: what the routine does, preserved defects, numeric
 decisions.
 
 > And read the body, because this is where it gets interesting.
 >
-> Look at **numeric decisions**. The old code does its own correction when a
-> remainder comes out negative. Rust has a built-in that does almost the same
-> thing — and it says, in writing, that it deliberately did *not* use the
-> built-in, and reproduced the original correction step by step instead.
+> Look at **numeric decisions**. The old code does its own little correction
+> when a division comes out negative. Rust has a built-in that would give the
+> same answer here — and it says, in writing, that it *knows* that, and chose
+> not to use it anyway. Because "same answer today" isn't the bar. The bar is
+> whether it matches what the 1987 deck actually specifies.
 >
-> That's a subtle call. "Almost the same" is how you end up off by a day on the
-> one pass a year that matters. I've watched experienced engineers get that
-> wrong.
+> That's the instinct you want. It's not chasing clever. It's chasing faithful.
 >
-> And look at **what was not done**. It says there was no approved plan on file
-> for this routine, so it worked straight from the FORTRAN. Nobody asked it to
-> confess that. It flagged its own gap.
+> And look at **what was not done**. It says it left the shape of the function
+> alone — the name, what goes in, what comes out — because other parts of the
+> port already call it. That's the thing you want it worrying about. Don't break
+> the neighbors while you're rebuilding the room.
 >
-> One honest note, since it's right there on screen — under preserved defects it
-> says "none identified." I'd have liked it to flag the leap-second constant in
-> this routine, which is hand-edited and hasn't been touched since 2016. It
-> *preserved* it correctly, and it explains why in the code comments, but it
-> didn't call it out as a landmine. That's a real miss, and it's the reason a
-> human reads this before it goes anywhere.
+> And then read **preserved defects**, which is the one I'd point at if you only
+> look at one thing.
 >
-> Is it an easy button? Still no. But it did the boring, careful, expensive part
+> The leap-second offset in this routine is a number somebody types in by hand.
+> The header says it has to be updated every time the world adds a leap second,
+> and it was last touched in 2016. That's a bug with a fuse on it.
+>
+> That one was already on the books as a known problem. Watch what it does with
+> it. It copies the 2016 value forward exactly as-is, writes down that it did
+> that on purpose, and says fixing it is its own change with its own updated
+> test vectors — not something you quietly clean up while porting.
+>
+> Which is right, and it's the thing people get wrong. If it had helpfully fixed
+> that on the way through, the output changes, parity breaks, and I've lost the
+> only evidence I had that any of the rest of this is faithful. Fix it later, on
+> purpose, with the tests updated deliberately.
+>
+> Is it an easy button? Still no. But it did the careful, expensive part
 > — and it did it inside a fence where the worst case is that it wastes my time,
 > not that it quietly breaks a spacecraft's ground segment.
 
@@ -622,21 +639,34 @@ morning. Re-measure after any narration edit.
 | Beat | Content | Talk | Commands | Target | Cumulative |
 |---|---|---|---|---|---|
 | 0 | What the thing does | 1:45 | — | 1:45 | 1:45 |
-| 1 | The deck still runs | 2:35 | 0:05 | 2:40 | 4:25 |
-| 2 | Map it, in-boundary | 4:35 | 0:10 | 4:45 | 9:10 |
-| 3 | Characterize and port | 3:30 | 0:05 | 3:35 | 12:45 |
-| 4 | Agentic loop in CI | 2:05 | 1:45 | 3:50 | 16:35 |
-| 5 | Mutation check and close | 1:35 | 0:10 | 1:45 | 18:20 |
+| 1 | The deck still runs | 2:36 | 0:05 | 2:41 | 4:26 |
+| 2 | Map it, in-boundary | 4:53 | 0:10 | 5:03 | 9:29 |
+| 3 | Characterize and port | 3:28 | 0:05 | 3:33 | 13:02 |
+| 4 | Agent plans | 2:10 | 1:45 | 3:55 | 16:57 |
+| 4b | Agent writes the port | 4:22 | 1:00 | 5:22 | 22:19 |
+| 5 | Mutation check and close | 1:36 | 0:10 | 1:46 | 24:05 |
 
-Beat 4's "commands" is you walking the PR in the browser, which is the one place
-you will naturally run long.
+The "commands" time on Beats 4 and 4b is you walking a pull request in the
+browser, which is the one place you will naturally run long.
 
-**18:20 clean.** Real rooms add pauses, a laugh, and someone interrupting with a
-question, so **plan on 20:00 and change**. Two optional adds not counted above:
-the "why is it one file?" aside in Beat 1 (0:25) and the show of hands (0:30).
+### Read this before you build the run of show
 
-**If your slot is 20 minutes including Q&A, you are over.** Take the first two
-cuts below before you walk up.
+**24:05 is over your slot. Run Beat 4 or Beat 4b — not both.** They make the
+same argument twice, and the second telling is always the one that gets rushed.
+
+| Run of show | Lands at | Pick it when |
+|---|---|---|
+| **4b, drop 4** | 20:10 | **Default.** The room's real objection is "can AI actually build anything." 4b answers it and still shows `safe-outputs`. |
+| 4, drop 4b | 18:43 | The room is governance-first — auditors, ISSMs, ATO people. A plan a human approves is the friendlier first contact. |
+| Both | 24:05 | Only if you genuinely have 25+ minutes and no Q&A. |
+
+Either way you still dispatch **both** runs at T-10, because it costs nothing
+and gives you a live spare if one run is slow or fails.
+
+Real rooms add pauses, a laugh, and someone interrupting with a question, so
+whichever you pick, **plan on that number plus two**. Two optional adds not
+counted above: the "why is it one file?" aside in Beat 1 (0:25) and the show of
+hands (0:30).
 
 ### Cut list, in order
 
@@ -648,7 +678,10 @@ cuts below before you walk up.
 | Beat 1 → skip the show of hands, skip the aside | 0:55 | Colder open |
 | Beat 2 → drop the "paste it into a model" paragraph | 0:30 | Weakens the *why AI needs this* argument. Last resort. |
 
-First two gets you to 16:40. First three, 15:25.
+Applied on top of the 4b-only run of show (20:10), the first two cuts get you
+to **18:30**, and the first three to **17:15**. If you are running 4b and your
+slot includes Q&A, **take the first two cuts before you walk up** — 4b is the
+longest beat in the deck and it is the one you least want to rush.
 
 ### Never cut
 
@@ -686,7 +719,7 @@ Two worth knowing cold, because they carry the demo:
   it, Beat 3's `make defect` is its defect. Its own header says it ignores J2,
   drag and all maneuver history, and tells you not to use it for pointing or
   conjunction. It is a quick-look estimate that outlived its caveat.
-- **`TIMCNV` — time convert.** Beat 4b implements it. The leap-second offset is
+- **`TIMCNV` — time convert.** Beat 4b re-derives it from the FORTRAN. The leap-second offset is
   a hand-edited constant, last updated 2016-12-31, and the header says it "must
   be hand edited when IERS announces a new leap second." That is a maintenance
   landmine sitting in a `DATA` statement, and it is real — this is how it was
