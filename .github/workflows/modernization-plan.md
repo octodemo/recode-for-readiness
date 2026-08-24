@@ -29,6 +29,8 @@ tools:
     - "make"
     - "grep *"
     - "sed *"
+checkout:
+  fetch-depth: 0
 safe-outputs:
   create-pull-request:
     title-prefix: "[modernization] "

@@ -462,6 +462,101 @@ not a mockup. Do not refresh the Actions page in front of the room.
 
 ---
 
+# Beat 4b — The agent writes the port, and can't grade itself
+
+**~3 minutes.** Right terminal. **This is the beat that answers "yeah but can it
+actually *do* anything."**
+
+Beat 4 showed an agent that plans. Fair pushback: planning is the safe half.
+This is the other half — the agent writes production Rust — and the reason it's
+safe has nothing to do with trusting the agent.
+
+Everything on `main` is already ported and green, so the gap is on a branch:
+`demo/port-timcnv` has the body of `TIMCNV` removed. The suite is red and
+waiting. **Dispatch this at the same time as Beat 4's run**, before you start
+talking — it takes about as long.
+
+```bash
+gh workflow run modernization-implement.lock.yml \
+  --ref demo/port-timcnv -f routine=TIMCNV
+```
+
+> So the fair question after that last one is: fine, it wrote a *plan*. Plans
+> are cheap. Can it actually do the work?
+>
+> So this one does. Same setup, one routine — `TIMCNV`, time convert. Takes GPS
+> seconds off the spacecraft and turns them into a calendar date. And on this
+> branch, I deleted it. The port is empty and the test suite is failing.
+
+Show the fencing first. This is the whole beat.
+
+```bash
+grep -A6 "allowed-files" .github/workflows/modernization-implement.md
+```
+
+> Now — this agent writes Rust. Real code, into the real port. So look at what
+> it's allowed to touch, because that's the entire safety story, and it isn't
+> "we trust it."
+>
+> It can write `modern/src`. That's it. That's the whole list.
+>
+> It cannot touch the FORTRAN. That's the oracle — that's the thing that defines
+> what correct means. If it could edit that, "the port matches the original"
+> would mean nothing at all.
+>
+> It cannot touch the golden vectors or the expected output. That's the
+> evidence. Byte-for-byte identical to a file you were allowed to rewrite is not
+> evidence of anything.
+>
+> And it cannot touch the tests. That's the judge. It does not get to grade its
+> own homework.
+>
+> So there is exactly one way this agent gets a green pull request out of me. It
+> has to actually reproduce what a person wrote in 1987, to the byte. It can't
+> negotiate, it can't move a goalpost, it can't loosen an assertion. Those roads
+> are closed at the harness, not in the prompt.
+
+Then the result.
+
+```bash
+PR=$(gh pr list --json number --jq 'max_by(.number).number')
+gh pr view "$PR" --json files --jq '.files[].path'
+```
+
+> And there it is. One file. `modern/src/timebase.rs`. Nothing else.
+
+Open the PR. Walk the body: what the routine does, preserved defects, numeric
+decisions.
+
+> And the part I'd point at if you only look at one thing — read the
+> **preserved defects** section.
+>
+> The leap-second offset in this routine is a hand-edited constant. The header
+> says it has to be updated by hand every time IERS declares a leap second, and
+> it was last touched in 2016. That is a bug with a fuse on it.
+>
+> The agent found it, reproduced it exactly, and then *wrote down that it did
+> that* and said fixing it needs its own change with its own updated vectors.
+>
+> Which is exactly right, and it's the thing people get wrong. If it had
+> helpfully fixed that while porting, the output changes, parity breaks, and I
+> lose the only proof I had that any of the rest of it is faithful. Fix it
+> later, on purpose, with the tests updated deliberately.
+>
+> Is it an easy button? Still no. A human reads this before it goes anywhere,
+> and it's a draft on purpose. But it did the boring, careful, expensive part —
+> and it did it inside a fence where the worst case is it wastes my time, not
+> that it quietly breaks a spacecraft's ground segment.
+
+**Fallback:** `cat demo/artifacts/implement-pr.md` and
+`demo/artifacts/implement-run.log`. Real captured output.
+
+**If you are cutting to 15 minutes, this beat and Beat 4 collapse into one** —
+skip the plan PR entirely, dispatch only this one, and say "it plans too" over
+the top of it. The fencing narration is what you keep.
+
+---
+
 # Beat 5 — Prove the tests can fail
 
 **~2 minutes.** Left terminal.
