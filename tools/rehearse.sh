@@ -10,15 +10,13 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.."
 
-export PYTHONDONTWRITEBYTECODE=1
-find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
-
 STEP=0
+TOTAL=8
 FAILED=()
 
 beat() {
   STEP=$((STEP + 1))
-  printf '\n\033[1m[%d/7] %s\033[0m\n' "$STEP" "$1"
+  printf '\n\033[1m[%d/%d] %s\033[0m\n' "$STEP" "$TOTAL" "$1"
 }
 
 check() {
@@ -49,22 +47,29 @@ check "god-nodes"  bash -c 'cd legacy && graphify god-nodes --top 5 2>&1 | grep 
 check "explain"    bash -c 'cd legacy && graphify explain "ORBPRP" 2>&1 | grep -q "geosat.f"'
 check "path"       bash -c 'cd legacy && graphify path "geosat" "crcchk" 2>&1 | grep -qi crcchk'
 
+beat "Rust port builds with the network off"
+# The crate has no third-party dependencies on purpose. If someone adds one,
+# the build starts needing a registry -- which a closed range will not have --
+# and this step is where that gets caught, not in the room.
+check "cargo build (offline)" \
+  bash -c 'cd modern && CARGO_NET_OFFLINE=true cargo build --quiet'
+
 beat "Modern port is byte-for-byte identical to the legacy binary"
 # Deliberately unpiped: `... | tail` reports tail's exit status and would mask
 # a failing suite entirely.
-check "characterization + unit suite" \
-  bash -c 'cd modern && python3 -m unittest discover -s tests -t .'
+check "characterization + unit suite" bash -c 'cd modern && cargo test --quiet'
 
 beat "The suite can actually fail (mutation check)"
 check "tools/mutation-check.sh" ./tools/mutation-check.sh
 
-# Regression guard. The mutation check edits and reverts modules in place; a
-# same-size revert inside one mtime tick once left a stale .pyc that made the
-# suite pass against MUTATED code. Re-running parity here is what catches that
-# class of failure, so this step must stay last.
+# Regression guard. The mutation check edits and reverts sources in place. Under
+# the previous Python port, a same-size revert inside one mtime tick left a
+# stale .pyc that made the suite pass against MUTATED code, and it hid that for
+# several rounds. Cargo keys on mtime too, so the same class of failure is
+# possible here. Re-running parity AFTER the mutation check is what catches it,
+# so this step must stay after step 6.
 beat "Parity still holds after the mutation check"
-check "post-mutation parity" \
-  bash -c 'cd modern && python3 -m unittest discover -s tests -t .'
+check "post-mutation parity" bash -c 'cd modern && cargo test --quiet'
 
 beat "Agentic workflows compile clean"
 check "gh aw compile" bash -c 'gh aw compile 2>&1 | grep -q "0 warnings"'

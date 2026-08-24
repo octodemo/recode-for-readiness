@@ -24,7 +24,7 @@ tools:
     toolsets: [pull_requests, repos]
   bash:
     - "make"
-    - "python3"
+    - "cargo"
     - "git diff *"
     - "git log *"
 safe-outputs:
@@ -46,7 +46,8 @@ is still the flight-qualified implementation.
 - `legacy/tests/golden/*.tlm` — telemetry vectors.
 - `legacy/tests/expected/*.out` — the exact bytes the legacy binary emits for
   those vectors.
-- `modern/geosat_modern/` — the behaviour-preserving Python port.
+- `modern/src/` — the behaviour-preserving Rust port (crate `geosat_modern`,
+  no third-party dependencies).
 - `modern/tests/` — the characterization suite that diffs the two.
 
 ## Your task
@@ -61,11 +62,11 @@ is still the flight-qualified implementation.
 3. Pay specific attention to the defects this codebase preserves on purpose.
    Each is documented in the source. Treat "fixing" any of them in an
    otherwise-routine refactor as a blocking finding, not an improvement:
-   - the single-precision time overflow in `orbit.py`
-   - the stale `LEAP_SECONDS` constant in `timebase.py`
-   - the asterisk-fill on numeric field overflow in `fortran.py`
-   - the coupling between channel 8 and channel 11 in `frame.py`
-   - the stale frame counter printed on CRC failure in `report.py`
+   - the single-precision time overflow in `modern/src/orbit.rs`
+   - the stale `LEAP_SECONDS` constant in `modern/src/timebase.rs`
+   - the asterisk-fill on numeric field overflow in `modern/src/fortran.rs`
+   - the coupling between channel 8 and channel 11 in `modern/src/frame.rs`
+   - the stale frame counter printed on CRC failure in `modern/src/report.rs`
 
 4. Check whether the change adds or removes coverage in `modern/tests/`. A
    pull request that changes behaviour *and* relaxes a test is the highest

@@ -1,17 +1,15 @@
 # Recode for Readiness -- demo driver
 #
 # Every target here is something run on stage or immediately before it.
-# Nothing in this file requires the network except `push` and `beat4`.
+# Nothing in this file requires the network except `beat4`.
 
 SHELL := /usr/bin/env bash
 
-# Never write bytecode. A stale .pyc left by a reverted mutation is invisible
-# and will make the parity suite lie. See tools/mutation-check.sh.
-export PYTHONDONTWRITEBYTECODE := 1
-GRAPH := legacy/graphify-out/graph.json
+GRAPH   := legacy/graphify-out/graph.json
+VECTOR  := pass01
 
-.PHONY: help preflight rehearse legacy graph offline-proof parity mutants \
-        workflows beat1 beat2 beat3 beat4 beat5 reset clean
+.PHONY: help card preflight rehearse legacy graph offline-proof parity \
+        mutants workflows beat1 beat2 beat3 beat4 beat5 defect reset clean
 
 help:
 	@echo ""
@@ -26,7 +24,8 @@ help:
 	@echo "  On stage:"
 	@echo "    make beat1          the deck still runs, and nobody knows why"
 	@echo "    make beat2          comprehension, in-boundary, no model"
-	@echo "    make beat3          characterize, port, prove byte parity"
+	@echo "    make beat3          characterize, port to Rust, prove byte parity"
+	@echo "    make defect         the clock moves, the spacecraft does not"
 	@echo "    make beat4          hand the loop to an agent, in CI"
 	@echo "    make beat5          prove the tests can fail"
 	@echo ""
@@ -34,7 +33,7 @@ help:
 	@echo "    make legacy         build and run the 1987 FORTRAN deck"
 	@echo "    make graph          build the knowledge graph"
 	@echo "    make offline-proof  rebuild the graph with egress blackholed"
-	@echo "    make parity         characterization + unit suite"
+	@echo "    make parity         characterization + unit suite (cargo test)"
 	@echo "    make mutants        mutation check (needs a clean tree)"
 	@echo "    make workflows      compile the agentic workflows"
 	@echo ""
@@ -55,13 +54,14 @@ $(GRAPH):
 	@graphify update legacy
 
 graph: $(GRAPH)
-	@python3 -c "import json;g=json.load(open('$(GRAPH)'));print('%d nodes, %d edges'%(len(g['nodes']),len(g['links'])))"
+	@python3 -c "import json;g=json.load(open('$(GRAPH)'));print('%d nodes, %d edges'%(len(g['nodes']),len(g['links'])))" 2>/dev/null \
+	  || echo "graph built: $(GRAPH)"
 
 offline-proof:
 	@./tools/offline-proof.sh
 
 parity:
-	@cd modern && python3 -m unittest discover -s tests -t .
+	@cd modern && cargo test
 
 mutants:
 	@./tools/mutation-check.sh
@@ -89,11 +89,32 @@ beat2:
 	@clear
 	@./tools/offline-proof.sh
 
-# ~5 min. Pin the behaviour, port it, prove it did not move.
+# ~5 min. Pin the behaviour, port it to Rust, prove it did not move.
 beat3:
 	@clear
-	@echo "== byte-for-byte against the 1987 binary =="
-	@cd modern && python3 -m unittest discover -s tests -t . -v 2>&1 | tail -20
+	@echo "== 1987 FORTRAN -> Rust, byte-for-byte against the original binary =="
+	@echo
+	@cd modern && cargo test 2>&1 | grep -Ev '^\s*$$' | tail -22
+
+# The single-precision time-overflow defect, preserved on purpose.
+#
+# Three consecutive frames four seconds apart. UTC advances. The subsatellite
+# point does not, because DT is carried in REAL(4) and the low bits are gone.
+# The port reproduces it exactly -- and deliberately does not fix it.
+defect:
+	@clear
+	@echo "== frames four seconds apart, per the 1987 binary =="
+	@$(MAKE) -C legacy all >/dev/null 2>&1
+	@./legacy/build/geosat < legacy/tests/golden/$(VECTOR).tlm \
+	  | grep -n "SCID=\|UTC \|SSP LAT" | head -9
+	@echo
+	@echo "== and the Rust port, on the same input =="
+	@cd modern && cargo build --quiet 2>/dev/null
+	@./modern/target/debug/geosat_modern < legacy/tests/golden/$(VECTOR).tlm \
+	  | grep -n "SCID=\|UTC \|SSP LAT" | head -9
+	@echo
+	@echo "The clock moves. The spacecraft does not. That is the bug --"
+	@echo "reproduced exactly, on purpose, and NOT fixed."
 
 # ~5 min. The loop runs in CI, as a reviewable pull request.
 beat4:
@@ -114,9 +135,8 @@ beat5:
 # `git checkout -- .`, which silently discards unrelated uncommitted work --
 # that has already cost this repo one round of edits.
 reset:
-	@git checkout -- legacy/src modern/geosat_modern modern/tests 2>/dev/null || true
+	@git checkout -- legacy/src modern/src modern/tests 2>/dev/null || true
 	@$(MAKE) -C legacy clean >/dev/null 2>&1 || true
-	@find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 	@$(MAKE) -C legacy all >/dev/null 2>&1
 	@rest=$$(git status --porcelain -- . ':!legacy/graphify-out' ':!legacy/src' ':!modern' | grep -v '^??' || true); \
 	 if [ -n "$$rest" ]; then \
@@ -128,5 +148,5 @@ reset:
 
 clean:
 	@$(MAKE) -C legacy clean
+	@cd modern && cargo clean
 	@rm -rf legacy/graphify-out
-	@find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true

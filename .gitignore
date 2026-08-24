@@ -1,7 +1,6 @@
 # Build output
 legacy/build/
-__pycache__/
-*.pyc
+modern/target/
 
 # graphify working cache (the graph itself is committed as a demo artifact)
 legacy/graphify-out/cache/

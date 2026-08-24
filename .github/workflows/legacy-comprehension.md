@@ -20,7 +20,8 @@ tools:
     mode: gh-proxy
     toolsets: [issues, repos]
   bash:
-    - "python3"
+    - "cargo"
+    - "jq *"
     - "grep *"
     - "sed *"
 safe-outputs:
@@ -46,7 +47,7 @@ issue is about anything else, call `noop` and post nothing.
    `EXTRACTED` (read directly from the source) or `INFERRED` (resolved by
    graphify). Use it to find the call structure before you read anything.
 
-   Read it with `python3`. Useful shapes:
+   Read it with `jq`. Useful shapes:
    - which routines call the subject, and which it calls
    - the shortest path between two routines
    - the most connected routines, which are the de facto architecture

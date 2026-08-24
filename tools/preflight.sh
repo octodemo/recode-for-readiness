@@ -32,10 +32,22 @@ else
   bad "gfortran not found -- 'brew install gcc'"
 fi
 
-if have python3; then
-  ok "python3 $(python3 -V 2>&1 | cut -d' ' -f2)"
+if have cargo; then
+  ok "cargo $(cargo --version | cut -d' ' -f2)"
 else
-  bad "python3 not found"
+  bad "cargo not found -- https://rustup.rs"
+fi
+
+if have rustc; then
+  ok "rustc $(rustc --version | cut -d' ' -f2)"
+else
+  bad "rustc not found -- https://rustup.rs"
+fi
+
+if have python3; then
+  ok "python3 $(python3 -V 2>&1 | cut -d' ' -f2) (graph tooling only)"
+else
+  warn "python3 not found -- graphify and 'make graph' need it"
 fi
 
 if have graphify; then
@@ -101,6 +113,20 @@ else
   warn "no graph yet -- 'make graph' will build it in under a second"
 fi
 
+# The Rust port must have no third-party dependencies, or `cargo build` needs
+# a network and a registry the demo room may not have. Cargo.lock naming only
+# this crate is the cheap proof.
+if [[ -f modern/Cargo.lock ]]; then
+  DEPS="$(grep -c '^name = ' modern/Cargo.lock || echo 0)"
+  if [[ "$DEPS" -eq 1 ]]; then
+    ok "Rust port has zero dependencies (builds offline)"
+  else
+    warn "Cargo.lock names $DEPS packages -- the build now needs a registry"
+  fi
+else
+  warn "modern/Cargo.lock missing -- run 'cargo build' in modern/ and commit it"
+fi
+
 # A quoting mistake in one of these is invisible until the beat runs, and it
 # would surface mid-demo. `bash -n` costs nothing.
 BADSH=""
@@ -125,7 +151,7 @@ else
   warn "no frozen artifacts -- beat 4 has no fallback"
 fi
 
-if [[ -z "$(git status --porcelain -- legacy/src modern/geosat_modern modern/tests)" ]]; then
+if [[ -z "$(git status --porcelain -- legacy/src modern/src modern/tests)" ]]; then
   ok "mutation targets clean ('make mutants' can run)"
 else
   warn "mutation targets dirty -- 'make mutants' will refuse to run"

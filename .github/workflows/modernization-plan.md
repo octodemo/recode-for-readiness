@@ -24,7 +24,8 @@ tools:
     mode: gh-proxy
     toolsets: [repos]
   bash:
-    - "python3"
+    - "cargo"
+    - "jq *"
     - "make"
     - "grep *"
     - "sed *"
@@ -59,7 +60,7 @@ equivalence, then change behaviour separately and deliberately.
    connects to.
 2. Read the routine in `legacy/src/geosat.f`, and the COMMON blocks it
    touches in `legacy/src/geosat.inc`.
-3. Read the corresponding module under `modern/geosat_modern/`, if one
+3. Read the corresponding module under `modern/src/`, if one
    exists, and the tests that cover it in `modern/tests/`.
 4. Read `legacy/tests/expected/` to see the behaviour that is currently
    pinned.

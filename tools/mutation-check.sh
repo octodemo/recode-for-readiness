@@ -16,28 +16,38 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
 
-# Mutations are same-length sed substitutions, so a mutated source can have the
-# same size as the original and be reverted within the same filesystem-mtime
-# tick. CPython's bytecode cache validates on (mtime, size) and will happily go
-# on serving the MUTATED module afterwards, silently poisoning every later run.
-# Never write bytecode here, and purge anything already cached.
-export PYTHONDONTWRITEBYTECODE=1
-purge_pycache() {
-  find "$REPO" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+# Mutations are sed substitutions applied in place and reverted with
+# `git checkout --`. Cargo decides whether to rebuild from source mtimes, so a
+# revert landing inside the same timestamp as the mutation could in principle
+# leave a stale binary in target/ and silently poison every later run. Bump the
+# mtime explicitly after every write so that can never happen.
+#
+# This is the Rust-shaped version of a bug this repo was already bitten by
+# once: under the previous Python port, CPython's bytecode cache validates on
+# (mtime, size), same-length mutations reverted within one mtime tick kept
+# serving the MUTATED module, and the parity suite lied about it for several
+# rounds. Rehearsal step 6 re-runs parity AFTER this script for exactly that
+# reason. Do not remove it.
+touch_sources() {
+  find "$REPO/modern/src" "$REPO/modern/tests" -name '*.rs' -exec touch {} + 2>/dev/null || true
 }
-purge_pycache
-trap purge_pycache EXIT
 
 # Mutations are applied to the sources and reverted with `git checkout --`,
 # so those paths -- and only those -- have to be clean. The graph output under
 # legacy/graphify-out/ carries a rebuild timestamp and is deliberately excluded;
 # otherwise simply having run `make graph` would block the check on stage.
-DIRTY="$(git status --porcelain -- legacy/src modern/geosat_modern modern/tests)"
+DIRTY="$(git status --porcelain -- legacy/src modern/src modern/tests)"
 if [[ -n "$DIRTY" ]]; then
   echo "ERROR: mutation targets are dirty. Commit or stash before mutation testing." >&2
   echo "$DIRTY" >&2
   exit 2
 fi
+
+restore() {
+  git checkout -- legacy/src modern/src modern/tests 2>/dev/null || true
+  touch_sources
+}
+trap restore EXIT
 
 FAILED=0
 
@@ -48,18 +58,19 @@ run_mutation() {
   printf '  %-34s ' "$name"
 
   sed -i '' "$expr" "$file"
+  touch_sources
 
-  if ! git diff --quiet -- "$file"; then
-    : # mutation applied
-  else
+  if git diff --quiet -- "$file"; then
     printf 'SKIP (pattern did not match)\n'
     git checkout -- "$file"
-    purge_pycache
+    touch_sources
     FAILED=1
     return
   fi
 
-  if (cd modern && python3 -m unittest discover -s tests -t . >/dev/null 2>&1); then
+  # Deliberately unpiped and fully redirected: piping this into `tail` would
+  # report tail's exit status, which reads green no matter what cargo did.
+  if (cd modern && cargo test --quiet >/dev/null 2>&1); then
     printf 'SURVIVED  <-- blind spot: %s\n' "$rationale"
     FAILED=1
   else
@@ -67,40 +78,40 @@ run_mutation() {
   fi
 
   git checkout -- "$file"
-  purge_pycache
+  touch_sources
 }
 
 echo "Mutation check -- each change below must be detected by the suite."
 echo
 
 run_mutation "crc polynomial off by one bit" \
-  "modern/geosat_modern/crc.py" \
-  's/POLYNOMIAL = 0x1021/POLYNOMIAL = 0x1020/' \
+  "modern/src/crc.rs" \
+  's/pub const POLYNOMIAL: u16 = 0x1021;/pub const POLYNOMIAL: u16 = 0x1020;/' \
   "a corrupted CRC would pass frames that should be rejected"
 
 run_mutation "silently fix the float32 defect" \
-  "modern/geosat_modern/orbit.py" \
-  's/    dt = f32(float(gps_seconds - ELEMENT_EPOCH_GPS))/    dt = float(gps_seconds - ELEMENT_EPOCH_GPS)/' \
+  "modern/src/orbit.rs" \
+  's|let dt = (gps_seconds - ELEMENT_EPOCH_GPS) as f32;|let dt = (gps_seconds - ELEMENT_EPOCH_GPS) as f64;|; s|let u = TWO_PI \* (dt / period);|let u = (TWO_PI as f64 * (dt / period as f64)) as f32;|' \
   "improving precision changes every archived subsatellite point"
 
 run_mutation "widen the overflowing F9.3 field" \
-  "modern/geosat_modern/fortran.py" \
-  's/        return "\*" \* width/        return text/' \
+  "modern/src/fortran.rs" \
+  's/        return "\*".repeat(width);/        return text;/' \
   "asterisk fill is what ARCLOD reads as no-value"
 
 run_mutation "decouple channel 11 from byte 28" \
-  "modern/geosat_modern/frame.py" \
-  's/    raw\[10\] = (frame\[27\] \& 0x0F) \* 24/    raw[10] = (frame[29] \& 0x0F) * 24/' \
+  "modern/src/frame.rs" \
+  's/raw\[10\] = ((frame\[27\] \& 0x0F) as i32) \* 24;/raw[10] = ((frame[29] \& 0x0F) as i32) * 24;/' \
   "the wire format really is packed this way; see ECO 91-217"
 
 run_mutation "refresh the stale leap-second count" \
-  "modern/geosat_modern/timebase.py" \
-  's/LEAP_SECONDS = 18/LEAP_SECONDS = 19/' \
+  "modern/src/timebase.rs" \
+  's/pub const LEAP_SECONDS: i64 = 18;/pub const LEAP_SECONDS: i64 = 19;/' \
   "a leap-second change shifts every decoded timestamp"
 
 run_mutation "drop the eclipse thermistor fit" \
-  "modern/geosat_modern/calibration.py" \
-  's/C2 = \[0.0, 0.0, -1.2e-8,/C2 = [0.0, 0.0, 0.0,/' \
+  "modern/src/calibration.rs" \
+  's/\[0.0, 0.0, -1.2e-8,/[0.0, 0.0, 0.0,/' \
   "reverting to the linear fit reintroduces spurious eclipse alarms"
 
 echo

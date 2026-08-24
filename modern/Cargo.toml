@@ -1,0 +1,31 @@
+[package]
+name = "geosat_modern"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+description = "Behaviour-preserving Rust port of the 1987 GEOSAT FORTRAN telemetry processor"
+publish = false
+
+# No dependencies, deliberately.
+#
+# Everything this port needs -- byte parsing, CRC, IEEE-754 binary32
+# arithmetic, FORTRAN edit-descriptor formatting -- is in the standard
+# library. A ground-system component that pulls a dependency tree acquires a
+# supply chain, and `cargo build` then needs a network it will not have on a
+# closed range. This crate builds from a cold clone with the network off.
+[dependencies]
+
+[[bin]]
+name = "geosat_modern"
+path = "src/main.rs"
+
+[lib]
+name = "geosat_modern"
+path = "src/lib.rs"
+
+[profile.dev]
+# The parity suite shells out to the built binary. Keep debug builds honest
+# about arithmetic: no fast-math, no reassociation. Rust never contracts
+# floating point into FMA on its own, which is what -ffp-contract=off buys
+# on the gfortran side.
+opt-level = 0
